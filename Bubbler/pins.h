@@ -27,10 +27,6 @@
 // Pin 13 SPI SCK, LED
 
 // ANALOGUE I/O
-#define TEMP1 0
-#define TEMP2 1
-#define I2C_DA 5 // I2C data
-#define I2C_CL 6 // I2C clock
 
 void disable_pin( int pin ) {
 	pinMode( pin, INPUT );
