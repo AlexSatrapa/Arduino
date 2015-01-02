@@ -1,0 +1,20 @@
+#!/bin/sh
+
+function usage() {
+	echo "Usage: $0 project – Creates a new Arduino project."
+	exit
+	}
+
+function alreadyexists() {
+	echo "Sorry, the directory '$1' already exists."
+	exit 1
+	}
+
+[ -z $1 ] && usage
+
+[ -d $1 ] && alreadyexists $1
+
+mkdir $1
+cp template.ino $1/$1.ino
+cp template.make $1/Makefile
+cp pins.h $1/pins.h
