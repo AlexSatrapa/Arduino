@@ -4,3 +4,5 @@ contrib/*
 *.bbprojectd
 *.zip
 *.hex
+.lib
+.dep
