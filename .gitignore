@@ -6,3 +6,4 @@ contrib/*
 *.hex
 .lib
 .dep
+*.o
