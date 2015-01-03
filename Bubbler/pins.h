@@ -10,11 +10,11 @@
 #define MOTOR 3
 
 // Pin 4 PCINT20/XCK/T0
-#define MOTORLED 4
+#define WARNLED 4
 // Pin 5 PCINT21/OC0B/T1, PWM
-#define READINGLED 5
+#define MOTORLED 5
 // Pin 6 PCINT22/OC0A/AIN0, PWM
-#define POWERLED 6
+#define READINGLED 6
 // Pin 7 PCINT23/AIN1
 #define SELECT 7
 // Pin 8 PCINT0/CLK0/ICP1
@@ -40,7 +40,7 @@ void setup_pins() {
 	pinMode(MOTOR, OUTPUT);
 	pinMode(MOTORLED, OUTPUT);
 	pinMode(READINGLED, OUTPUT);
-	pinMode(POWERLED, OUTPUT);
+	pinMode(WARNLED, OUTPUT);
 	digitalWrite(SELECT, HIGH);
 	pinMode(SELECT, OUTPUT);
 	disable_pin( 7 );

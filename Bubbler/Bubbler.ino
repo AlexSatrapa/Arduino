@@ -1,91 +1,91 @@
 #include <SPI.h>
 #include "pins.h"
+#include "SSC.h"
+
+SSC pressure_sensor(0x00, SELECT);
+
+void printReading( float accumulator ) {
+	Serial.print(pressure_sensor.pressure() * 70.3); // PSI to cm of water
+	Serial.print(", ");
+	Serial.print(pressure_sensor.temperature());
+	Serial.print(", ");
+	Serial.println(accumulator * 70.3);
+	}
 
 void chargePressureTube() {
 	digitalWrite(MOTORLED, HIGH);
-	digitalWrite(MOTOR, HIGH);
-	delay(500);
-	digitalWrite(MOTOR, LOW);
+	float old_pressure = 0.0;
+	float new_pressure = 0.0;
+	float alpha = 0.3;
+	float accumulator = 0.0;
+	boolean charging = 1;
+	boolean highpressure = 0;
+	new_pressure = pressure_sensor.pressure();
+	accumulator = new_pressure;
+
+	while (charging) {
+		accumulator = (alpha * new_pressure) + (1.0 - alpha) * accumulator;
+		printReading(accumulator);
+		highpressure = (new_pressure > (0.9 * pressure_sensor.maxPressure()));
+		if (highpressure) {
+			charging = 0;
+			Serial.println("HIGH PRESSURE!");
+			digitalWrite(WARNLED, HIGH);
+			break;
+			}
+		else {
+			digitalWrite(WARNLED, LOW);
+			}
+		if (charging) {
+			digitalWrite(MOTOR, HIGH);
+			int pump_duration = constrain(trunc(accumulator * 70.0), 25, 100);
+			delay(pump_duration);
+			digitalWrite(MOTOR, LOW);
+			}
+		delay(1000); // allow for pump motor inertia, and escape of some bubbles
+		pressure_sensor.update();
+		new_pressure = pressure_sensor.pressure();
+		charging = (abs(new_pressure - accumulator) / accumulator > 0.01);
+		}
 	digitalWrite(MOTORLED, LOW);
 	}
 
-void interpretReading(byte *val1, byte *val2, byte *val3, byte *val4) {
-	char raw_data_string[13];
-	sprintf(raw_data_string, "[%02X:%02X:%02X:%02X]", *val1, *val2, *val3, *val4);
-	Serial.print(raw_data_string);
-	Serial.print(", ");
-	// Status
-	byte status = *val1;
-	status = status & 0xC0;
-	status = status >> 6;
-	Serial.print(status, HEX);
-	Serial.print(", ");
-
-	// Data
-	byte topByte = *val1;
-	byte bottomByte = *val2;
-	topByte = topByte & 0x3F;
-	int hsc_output = topByte;
-	hsc_output = hsc_output << 8;
-	hsc_output = hsc_output | bottomByte;
-	Serial.print(hsc_output);
-	Serial.print(", ");
-
-	const int max_counts = 14746;
-	const int min_counts = 1638;
-	float psi = (float(hsc_output - min_counts) * 5.0) / (max_counts - min_counts);
-	float cm_water = psi * 70.3; // PSI to cm of water
-	Serial.print(cm_water, 1);
-	Serial.print(", ");
-
-	// Temperature correction
-	topByte = *val3;
-	bottomByte = *val4;
-	int raw_temp = topByte;
-	raw_temp = raw_temp << 3;
-	bottomByte = bottomByte & 0xE0;
-	bottomByte = bottomByte >> 5;
-	raw_temp = raw_temp | bottomByte;
-	float temperature = float(raw_temp) * 200.0;
-	temperature = temperature / 2047 - 50.0;
-	Serial.print(temperature, 1);
-	Serial.println("");
-	}
-
 void readPressureGauge() {
-	digitalWrite(SELECT, LOW);
-	digitalWrite(READINGLED, HIGH);
-	byte val0, val1, val2, val3, val4;
-	delay(50);
-	val0 = 0xAA;
-	val1 = SPI.transfer(val0);
-	val2 = SPI.transfer(val0);
-	val3 = SPI.transfer(val0);
-	val4 = SPI.transfer(val0);
-	delay(50);
-	digitalWrite(SELECT, HIGH);
-	interpretReading( &val1, &val2, &val3, &val4 );
-	digitalWrite(READINGLED, LOW);
+	float old_pressure = pressure_sensor.pressure();
+	float accumulator = old_pressure;
+	float alpha = 0.3;
+	boolean stable = 1;
+	while (stable) {
+		delay(10000);
+		digitalWrite(READINGLED, HIGH);
+		pressure_sensor.update();
+		accumulator = (alpha * pressure_sensor.pressure()) + (1.0 - alpha) * accumulator;
+		printReading(accumulator);
+		digitalWrite(READINGLED, LOW);
+		stable = (abs(old_pressure - accumulator) / old_pressure <= 0.01);
+		}
 	}
 
 void setup() {
 	// put your setup code here, to run once:
 	setup_pins();
 	Serial.begin(9600);
-	// http://arduino.cc/en/Reference/SPI
-	SPI.begin();
-	SPI.setDataMode(SPI_MODE0);
-	SPI.setBitOrder(MSBFIRST);
-	SPI.setClockDivider(SPI_CLOCK_DIV64); // HSC clock speed is 50-800kHz
+	pressure_sensor.setMinRaw(1638);
+	pressure_sensor.setMaxRaw(14746);
+	pressure_sensor.setMinPressure(0.0);
+	pressure_sensor.setMaxPressure(5.0);
+	pressure_sensor.setTemperatureCompensated(1);
+	Serial.print("Initialising pressure sensor: ");
+	Serial.println(pressure_sensor.start());
+	Serial.print("Maximum pressure is ");
+	Serial.println(pressure_sensor.maxPressure() * 70.3);
+	pressure_sensor.update();
 }
 
 void loop() {
 	// put your main code here, to run repeatedly:
 	Serial.println(". o O ( Making Bubbles )");
 	chargePressureTube();
-	for (int i=0; i<10; i++){
-		readPressureGauge();
-		delay(200);
-	}
-	delay(4000);
+	Serial.println(". o O ( Reading Pressure )");
+	readPressureGauge();
 }
