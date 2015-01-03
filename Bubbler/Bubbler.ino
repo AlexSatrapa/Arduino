@@ -14,7 +14,6 @@ void printReading( float accumulator ) {
 
 void chargePressureTube() {
 	digitalWrite(MOTORLED, HIGH);
-	float old_pressure = 0.0;
 	float new_pressure = 0.0;
 	float alpha = 0.3;
 	float accumulator = 0.0;
