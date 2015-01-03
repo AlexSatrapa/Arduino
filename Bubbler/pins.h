@@ -41,8 +41,8 @@ void setup_pins() {
 	pinMode(MOTORLED, OUTPUT);
 	pinMode(READINGLED, OUTPUT);
 	pinMode(POWERLED, OUTPUT);
-	pinMode(SELECT, OUTPUT);
 	digitalWrite(SELECT, HIGH);
+	pinMode(SELECT, OUTPUT);
 	disable_pin( 7 );
 	disable_pin( 8 );
 	disable_pin( 9 );
