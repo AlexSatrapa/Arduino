@@ -6,9 +6,15 @@
 // Pin 0 UART RX, PCINT16
 // Pin 1 UART TX, PCINT17
 // Pin 2 interrupt 0, PCINT18
+#define DS3231_ALARM 2 // Stalker: solder the jumper!
 // Pin 3 interrupt 1, PCINT19, OC2B, PWM output
+// RST/32K allows the DS3231 Reset or 32kHz output to be connected to PD3/INT1
+//#define DS3231_RESET 3 // Stalker: solder the jumper!
+//#define DS3231_32K 3
 // Pin 4 PCINT20/XCK/T0
-// Pin 5 PCINT21/OC0B/T1, PWM
+#define POWER_TF 4 // microSD card power on Pin 4. Solder the jumper!
+// Pin 5 PCINT21/T1/OC0B
+#define POWER_BEE 5 // Allow Pin 5 to control XBee power supply. Solder the jumper!
 // Pin 6 PCINT22/OC0A/AIN0, PWM
 // Pin 7 PCINT23/AIN1
 // Pin 8 PCINT0/CLK0/ICP1
@@ -54,15 +60,7 @@
 
 
 // Seeeduino Stalker special pins
-// INT allows the DS3231 alarm interrupt to be connected to PD2/INT0
-#define DS3231_ALARM 2 // solder the jumper!
-// RST/32K allows the DS3231 Reset or 32kHz output to be connected to PD3/INT1
-//#define DS3231_RESET 3
-//#define DS3231_32K 3
-// POWER_TF allows microSD card power to be controlled via D4/PD4. By default this is disabled
-#define POWER_TF 4 // solder the jumper!
 // POWER_BEE allows the XBEE power to be controlled using pin 5. By default it is disabled
-#define POWER_BEE 5 // solder the jumper!
 // CS_TF jumper selects microSD SPI Slave/Chip Select between D9/PB1 and D10/PB2, by default D10/PB2
 //#define CS_TF 9 // cut D10 bridge, solder the jumper
 #define CS_TF 10
