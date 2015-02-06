@@ -8,22 +8,35 @@ int MAX_RAW = 14746;
 int ERROR = (MAX_RAW - MIN_RAW) / 400; // 0.25%
 
 void printReading() {
-	Serial.print(pressure_sensor.pressure() * 70.3); // PSI to cm of water
+	Serial.print(pressure_sensor.pressure());
 	Serial.print(", ");
 	Serial.println(pressure_sensor.temperature());
 	}
 
+/*
+How a reading is taken:
+
+1. Start off with a pressure reading.
+
+2. Blow some air into the tube.
+
+3. If the pressure in the tube doesn't change significantly (i.e.: by more than the margin of error of the sensor), consider the tube evacuated, and the air pressure to be at equilibrium with the water pressure.
+
+4. If the pressure does change, go back to step 1.
+
+There is some finessing required in order to ensure that each "blow" is likely to change the overall pressure.
+*/
 void getPressureReading() {
-	float new_pressure = 0.0;
-	float alpha = 0.3;
-	float accumulator = 0.0;
 	boolean charging = 1;
 	boolean highpressure = 0;
+	int old_pressure; // pressures are raw readings ("counts") from HSC sensor
+	int new_pressure;
+
 	pressure_sensor.update();
 	new_pressure = pressure_sensor.pressure_Raw();
-	accumulator = new_pressure;
 
 	while (charging) {
+		old_pressure = new_pressure;
 		highpressure = (new_pressure > (0.9 * MAX_RAW));
 		if (highpressure) {
 			charging = 0;
@@ -36,15 +49,14 @@ void getPressureReading() {
 			}
 		if (charging) {
 			digitalWrite(MOTOR, HIGH);
-			int pump_duration = trunc(accumulator / 40);
+			int pump_duration = 50;
 			delay(pump_duration);
 			digitalWrite(MOTOR, LOW);
 			delay(500); // allow for pump motor inertia, and escape of some bubbles
 			}
 		pressure_sensor.update();
 		new_pressure = pressure_sensor.pressure_Raw();
-		accumulator = (alpha * new_pressure) + (1.0 - alpha) * accumulator;
-		charging = (abs(new_pressure - accumulator) > ERROR);
+		charging = (abs(new_pressure - old_pressure) > ERROR);
 		}
 	printReading();
 	}
@@ -56,12 +68,13 @@ void setup() {
 	pressure_sensor.setMinRaw(1638);
 	pressure_sensor.setMaxRaw(14746);
 	pressure_sensor.setMinPressure(0.0);
-	pressure_sensor.setMaxPressure(5.0);
+	pressure_sensor.setMaxPressure(351.5); // cm H20, instead of PSI
 	pressure_sensor.setTemperatureCompensated(1);
 	Serial.print("Initialising pressure sensor: ");
 	Serial.println(pressure_sensor.start());
 	Serial.print("Maximum pressure is ");
-	Serial.println(pressure_sensor.maxPressure() * 70.3);
+	Serial.println(pressure_sensor.maxPressure());
+	Serial.println("pressure (cmH20), temperature (C)");
 	pressure_sensor.update();
 }
 
