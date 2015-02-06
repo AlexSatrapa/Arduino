@@ -1,13 +1,43 @@
 #include <SPI.h>
 #include "pins.h"
 #include <SSC.h>
+#include <Wire.h>
+#include <RTClib.h>
 
 SSC pressure_sensor(0x00, SELECT);
+RTC_DS1307 RTC;
 int MIN_RAW = 1638;
 int MAX_RAW = 14746;
 int ERROR = (MAX_RAW - MIN_RAW) / 400; // 0.25%
 
+void print_datestamp() {
+	DateTime now;
+	now = RTC.now();
+	Serial.print(now.year(), DEC);
+	Serial.print('/');
+	Serial.print(now.month(), DEC);
+	Serial.print('/');
+	Serial.print(now.day(), DEC);
+	Serial.print(' ');
+	if (now.hour() < 10) {
+		Serial.print('0');
+		}
+	Serial.print(now.hour(), DEC);
+	Serial.print(':');
+	if (now.minute() < 10) {
+		Serial.print('0');
+		}
+	Serial.print(now.minute(), DEC);
+	Serial.print(':');
+	if (now.second() < 10) {
+		Serial.print('0');
+		}
+	Serial.print(now.second(), DEC);
+	}
+
 void printReading() {
+	print_datestamp();
+	Serial.print(", ");
 	Serial.print(pressure_sensor.pressure());
 	Serial.print(", ");
 	Serial.println(pressure_sensor.temperature());
@@ -64,6 +94,8 @@ void getPressureReading() {
 void setup() {
 	// put your setup code here, to run once:
 	setup_pins();
+	Wire.begin();
+	RTC.begin();
 	Serial.begin(115200);
 	pressure_sensor.setMinRaw(1638);
 	pressure_sensor.setMaxRaw(14746);
@@ -74,7 +106,7 @@ void setup() {
 	Serial.println(pressure_sensor.start());
 	Serial.print("Maximum pressure is ");
 	Serial.println(pressure_sensor.maxPressure());
-	Serial.println("pressure (cmH20), temperature (C)");
+	Serial.println("UTC, pressure (cmH20), temperature (C)");
 	pressure_sensor.update();
 }
 
