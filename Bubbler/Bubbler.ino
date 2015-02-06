@@ -1,6 +1,6 @@
 #include <SPI.h>
 #include "pins.h"
-#include "SSC.h"
+#include <SSC.h>
 
 SSC pressure_sensor(0x00, SELECT);
 int MIN_RAW = 1638;
