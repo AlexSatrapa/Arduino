@@ -1,3 +1,6 @@
 [submodule "libraries/DMD"]
 	path = libraries/DMD
 	url = git@github.com:AlexSatrapa/DMD.git
+[submodule "libraries/DHT"]
+	path = libraries/DHT
+	url = git@github.com:AlexSatrapa/DHT-sensor-library.git
