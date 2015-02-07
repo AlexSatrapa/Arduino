@@ -1,0 +1,3 @@
+[submodule "libraries/DMD"]
+	path = libraries/DMD
+	url = git@github.com:AlexSatrapa/DMD.git
