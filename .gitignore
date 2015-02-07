@@ -1,4 +1,3 @@
-libraries/*
 contrib/*
 .DS_Store
 *.bbprojectd
