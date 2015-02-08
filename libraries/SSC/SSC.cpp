@@ -55,7 +55,6 @@ uint8_t SSC::update()
   uint8_t x, y, v, w, s;
 
   if(a) { // If it has an address, it's an I2C device
-  /*
     while(1) {
      Wire.requestFrom(a, (uint8_t) 4);
      if(Wire.available()) {
@@ -86,7 +85,6 @@ uint8_t SSC::update()
       }
      }
     }
-    */
     return setError(DiagnosticError);
   }
   else { // Address of 0 means it's SPI

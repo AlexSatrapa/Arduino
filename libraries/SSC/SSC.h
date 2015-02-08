@@ -7,7 +7,7 @@
 // From https://code.google.com/p/arduino-ssc/
 
 #include <Arduino.h>
-//#include <Wire.h>
+#include <Wire.h>
 #include <SPI.h>
 class SSC
 {
