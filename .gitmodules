@@ -4,3 +4,6 @@
 [submodule "libraries/DHT"]
 	path = libraries/DHT
 	url = git@github.com:AlexSatrapa/DHT-sensor-library.git
+[submodule "libraries/MAX1704"]
+	path = libraries/MAX1704
+	url = git@github.com:AlexSatrapa/MAX1704.git
