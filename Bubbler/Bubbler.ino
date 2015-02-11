@@ -2,6 +2,7 @@
 #include "pins.h"
 #include <SSC.h>
 #include <Wire.h>
+#include <SPI.h>
 #include <RTClib.h>
 
 SSC pressure_sensor(0x00, SELECT);
