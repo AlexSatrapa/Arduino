@@ -10,3 +10,6 @@
 [submodule "libraries/SSC"]
 	path = libraries/SSC
 	url = git@github.com:AlexSatrapa/SSC.git
+[submodule "libraries/DS3234"]
+	path = libraries/DS3234
+	url = git@github.com:AlexSatrapa/ds3234.git
