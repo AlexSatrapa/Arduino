@@ -16,8 +16,9 @@
 // Pin 6 PCINT22/OC0A/AIN0, PWM
 #define READINGLED 6
 // Pin 7 PCINT23/AIN1
-#define SELECT 7
+#define PRESSURE 7
 // Pin 8 PCINT0/CLK0/ICP1
+#define CLOCK 8
 // Pin 9 PCINT1/OC1A, PWM
 
 // SD Card (SPI) uses pins 10, 11, 12, 13
@@ -41,10 +42,10 @@ void setup_pins() {
 	pinMode(MOTORLED, OUTPUT);
 	pinMode(READINGLED, OUTPUT);
 	pinMode(WARNLED, OUTPUT);
-	digitalWrite(SELECT, HIGH);
-	pinMode(SELECT, OUTPUT);
-	disable_pin( 7 );
-	disable_pin( 8 );
+	digitalWrite(PRESSURE, HIGH);
+	pinMode(PRESSURE, OUTPUT);
+	digitalWrite(CLOCK, HIGH);
+	pinMode(CLOCK, OUTPUT);
 	disable_pin( 9 );
 	}
 

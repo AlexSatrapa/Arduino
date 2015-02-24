@@ -3,37 +3,23 @@
 #include <SSC.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <RTClib.h>
+#include <DS3234.h>
 
-SSC pressure_sensor(0x00, SELECT);
-RTC_DS1307 RTC;
+SSC pressure_sensor(0x00, PRESSURE);
 int MIN_RAW = 1638;
 int MAX_RAW = 14746;
+int BUFF_MAX = 80;
 int ERROR = (MAX_RAW - MIN_RAW) / 400; // 0.25%
 
 void print_datestamp() {
-	DateTime now;
-	now = RTC.now();
-	Serial.print(now.year(), DEC);
-	Serial.print('/');
-	Serial.print(now.month(), DEC);
-	Serial.print('/');
-	Serial.print(now.day(), DEC);
-	Serial.print(' ');
-	if (now.hour() < 10) {
-		Serial.print('0');
-		}
-	Serial.print(now.hour(), DEC);
-	Serial.print(':');
-	if (now.minute() < 10) {
-		Serial.print('0');
-		}
-	Serial.print(now.minute(), DEC);
-	Serial.print(':');
-	if (now.second() < 10) {
-		Serial.print('0');
-		}
-	Serial.print(now.second(), DEC);
+	char buff[BUFF_MAX];
+	struct ts t;
+	DS3234_init(CLOCK, DS3234_INTCN);
+	DS3234_get(CLOCK, &t);
+
+	// Current time
+	snprintf(buff, BUFF_MAX, "%d/%02d/%02dT%02d:%02d:%02d", t.year, t.mon, t.mday, t.hour, t.min, t.sec);
+	Serial.print(buff);
 	}
 
 void printReading() {
@@ -63,6 +49,7 @@ void getPressureReading() {
 	int old_pressure; // pressures are raw readings ("counts") from HSC sensor
 	int new_pressure;
 
+	pressure_sensor.start();
 	pressure_sensor.update();
 	new_pressure = pressure_sensor.pressure_Raw();
 
@@ -89,14 +76,14 @@ void getPressureReading() {
 		new_pressure = pressure_sensor.pressure_Raw();
 		charging = (abs(new_pressure - old_pressure) > ERROR);
 		}
+	pressure_sensor.stop();
 	printReading();
 	}
 
 void setup() {
 	// put your setup code here, to run once:
 	setup_pins();
-	Wire.begin();
-	RTC.begin();
+	DS3234_init(CLOCK, DS3234_INTCN || DS3234_EOSC);
 	Serial.begin(115200);
 	pressure_sensor.setMinRaw(1638);
 	pressure_sensor.setMaxRaw(14746);
@@ -108,7 +95,9 @@ void setup() {
 	Serial.print("Maximum pressure is ");
 	Serial.println(pressure_sensor.maxPressure());
 	Serial.println("UTC, pressure (cmH20), temperature (C)");
+	pressure_sensor.start();
 	pressure_sensor.update();
+	pressure_sensor.stop();
 }
 
 void loop() {
