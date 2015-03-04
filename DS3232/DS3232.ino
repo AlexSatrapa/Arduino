@@ -43,16 +43,23 @@ Freetronics RTC -> Freetronics Eleven
 */
 
 #include <Wire.h>
+#include <SPI.h>
 #include <Time.h>
 #include <avr/pgmspace.h>
 #include <string.h>
-#include "DS3232RTC.h"  // DS3232 library that returns time as a time_t
+#include <DS3232RTC.h>  // DS3232 library that returns time as a time_t
+#include <DS3234.h>
+#include <RTC.h>
+#include "pins.h"
+
+DS3232RTC DS3232 = DS3232RTC();
+DS3234RTC *DS3234;
 
 char buffer[64];
 size_t buflen;
-int led = 13;
 bool led_on = false;
-bool int_0 = false;
+volatile bool ds3232_alarmed = false;
+volatile bool ds3234_alarmed = false;
 
 const char *days[] = {
     "Sun, ", "Mon, ", "Tue, ", "Wed, ", "Thu, ", "Fri, ", "Sat, "
@@ -83,8 +90,22 @@ inline uint8_t monthLength(const tmElements_t *date)
         return 29;
 }
 
+inline void print_binary(uint8_t value)
+{
+    static const char binchars[] = "01";
+    Serial.print(binchars[(value >> 7) & 0x01]);
+    Serial.print(binchars[(value >> 6) & 0x01]);
+    Serial.print(binchars[(value >> 5) & 0x01]);
+    Serial.print(binchars[(value >> 4) & 0x01]);
+    Serial.print(binchars[(value >> 3) & 0x01]);
+    Serial.print(binchars[(value >> 2) & 0x01]);
+    Serial.print(binchars[(value >> 1) & 0x01]);
+    Serial.println(binchars[value & 0x01]);
+}
+
 void cmdHelp(const char *);
-void alarmTrigger();
+void ds3232Alarm();
+void ds3234Alarm();
 void showTrigger();
 void blink();
 void printDec2(int value);
@@ -95,22 +116,29 @@ bool matchString(const char *name, const char *str, int len);
 void setup() {
     Serial.begin(115200);
     buflen = 0;
-    pinMode(led, OUTPUT);
+    pinMode(LED_PIN, OUTPUT);
 
     cmdHelp(0);
 
-    RTC.set33kHzOutput(false);
+    DS3232.set33kHzOutput(false);
 
     // Wire SQI pin to pin 2 on Uno, Ethernet & Mega; pin 3 on Leonardo
     // See: http://www.arduino.cc/en/Reference/AttachInterrupt
-    RTC.clearAlarmFlag(3);  // 3 is both (1+2)
-    int_0 = false;
-    attachInterrupt(0, alarmTrigger, CHANGE);
+    DS3232.clearAlarmFlag(3);  // 3 is both (1+2)
+    ds3232_alarmed = false;
+    attachInterrupt(1, ds3232Alarm, FALLING);
+
+    DS3234RTC foo = DS3234RTC(DS3234_SS_PIN, DS3234_INTCN | DS3234_A1IE);
+    DS3234 = &foo;
+    uint8_t flags[5] = { 0, 1, 1, 1, 1 };
+    DS3234_set_a1(DS3234_SS_PIN, 00, 10, 22, 0, flags);
+    DS3234_clear_a1f(DS3234_SS_PIN);
+    attachInterrupt(0, ds3234Alarm, FALLING);
 }
 
 void loop() {
     blink();
-    if (int_0) showTrigger();
+    if (ds3232_alarmed or ds3234_alarmed) showTrigger();
 
     if (Serial.available()) {
         // Process serial input for commands from the host.
@@ -136,35 +164,53 @@ void loop() {
     }
 }
 
-void alarmTrigger()  // Triggered when alarm interupt fired
+void ds3232Alarm()  // Triggered when DS3232 alarm is fired
 {
-    int_0 = true;
+    ds3232_alarmed = true;
+}
+
+void ds3234Alarm() // Triggered when DS3234 alarm is fired
+{
+    ds3234_alarmed = true;
 }
 
 void showTrigger()
 {
-    if (RTC.isAlarmFlag(1)) {
-        Serial.println("Alarm 1 Triggered");
-        RTC.clearAlarmFlag(1);
+    if(ds3232_alarmed) {
+         if (DS3232.isAlarmFlag(1)) {
+              Serial.println("DS3232 alarm 1 triggered");
+              DS3232.clearAlarmFlag(1);
+         }
+         if (DS3232.isAlarmFlag(2)) {
+              Serial.println("DS3232 alarm 2 triggered");
+              DS3232.clearAlarmFlag(2);
+         }
+         ds3232_alarmed = false;
     }
-    if (RTC.isAlarmFlag(2)) {
-        Serial.println("Alarm 2 Triggered");
-        RTC.clearAlarmFlag(2);
+    if(ds3234_alarmed) {
+        if(DS3234_triggered_a1(DS3234_SS_PIN)) {
+            Serial.println("DS3234 alarm 1 triggered");
+            DS3234_clear_a1f(DS3234_SS_PIN);
+        }
+        if(DS3234_triggered_a2(DS3234_SS_PIN)) {
+            Serial.println("DS3234 alarm 2 triggered");
+            DS3234_clear_a2f(DS3234_SS_PIN);
+        }
+        ds3234_alarmed = false;
     }
-    int_0 = false;
 }
 
 void blink()
 {
-    // blink the pin 13 led
+    // blink the LED
     int i = millis() / 1000;
     bool j = ((i % 2) == 0);
     if (led_on != j) {
         led_on = j;
         if (j) {
-            digitalWrite(led, HIGH);
+            digitalWrite(LED_PIN, HIGH);
         } else {
-            digitalWrite(led, LOW);
+            digitalWrite(LED_PIN, LOW);
         }
     }
 }
@@ -222,12 +268,12 @@ void cmdTime(const char *args)
             Serial.println("Invalid time format; use HH:MM:SS");
             return;
         }
-        RTC.writeTime(tm);
+        DS3232.writeTime(tm);
         Serial.print("Time has been set to: ");
     }
 
     // Read the current time.
-    RTC.read(tm);
+    DS3232.read(tm);
     printDec2(tm.Hour);
     Serial.print(':');
     printDec2(tm.Minute);
@@ -267,23 +313,29 @@ void cmdDate(const char *args)
         tm.Minute = 0;
         tm.Second = 0;
         tm.Wday = 0; // Ask Time library to calculate day of week.
-        RTC.writeDate(tm);
+        DS3232.writeDate(tm);
         Serial.print("Date has been set to: ");
     } /* */
 
     // Read the current date.
-    RTC.read(tm);
+    DS3232.read(tm);
     if (tm.Wday > 0) Serial.print(days[tm.Wday - 1]);
     Serial.print(tm.Day, DEC);
     Serial.print(months[tm.Month - 1]);
     Serial.println(tmYearToCalendar(tm.Year), DEC);  // NB! Remember tmYearToCalendar()
+
+    DS3234->read(tm);
+    if (tm.Wday > 0) Serial.print(days[tm.Wday - 1]);
+    Serial.print(tm.Day, DEC);
+    Serial.print(months[tm.Month - 1]);
+    Serial.println(tmYearToCalendar(tm.Year), DEC);  // NB! Remember tmYearToCalendar() */
 }
 
 // "TEMP" command.
 void cmdTemp(const char *args)
 {
     tpElements_t tp;
-    RTC.readTemperature(tp);
+    DS3232.readTemperature(tp);
     if (tp.Temp != NO_TEMPERATURE) {
         float temp = tp.Temp + (tp.Decimal / 100);
         Serial.print(temp);
@@ -301,7 +353,7 @@ void printAlarm(byte alarmNum, const alarmMode_t mode, const tmElements_t time)
     Serial.print(alarmNum, DEC);
 
     Serial.print(": INT ");
-    if (RTC.isAlarmInterupt(alarmNum)) {
+    if (DS3232.isAlarmInterupt(alarmNum)) {
         Serial.print("ON");
     } else {
         Serial.print("OFF");
@@ -360,7 +412,7 @@ void cmdAlarms(const char *args)
     tmElements_t time;
     alarmMode_t mode;
     for (byte alarmNum = 1; alarmNum <= 2; ++alarmNum) {
-        RTC.readAlarm(alarmNum, mode, time);
+        DS3232.readAlarm(alarmNum, mode, time);
         printAlarm(alarmNum, mode, time);
     }
     showTrigger();
@@ -396,26 +448,26 @@ void cmdAlarm(const char *args)
                 return;
             }
             mode = alarmModeHoursMatch;
-            bool a1 = RTC.isAlarmInterupt(1);
-            bool a2 = RTC.isAlarmInterupt(2);
+            bool a1 = DS3232.isAlarmInterupt(1);
+            bool a2 = DS3232.isAlarmInterupt(2);
             if (alarmNum == 1) {
               a1 = true;
             } else {
               a2 = true;
             }
             if (a1 && a2) {
-              RTC.setSQIMode(sqiModeAlarmBoth);
+              DS3232.setSQIMode(sqiModeAlarmBoth);
             } else if (a1) {
-              RTC.setSQIMode(sqiModeAlarm1);
+              DS3232.setSQIMode(sqiModeAlarm1);
             } else if (a2) {
-              RTC.setSQIMode(sqiModeAlarm2);
+              DS3232.setSQIMode(sqiModeAlarm2);
             }
         }
-        RTC.writeAlarm(alarmNum, mode, time);
+        DS3232.writeAlarm(alarmNum, mode, time);
     }
 
     // Print the current state of the alarm.
-    RTC.readAlarm(alarmNum, mode, time);
+    DS3232.readAlarm(alarmNum, mode, time);
     printAlarm(alarmNum, mode, time);
 }
 
@@ -475,24 +527,13 @@ void cmdDump(const char *args)
 // "REGS" command
 void cmdRegisters(const char *)
 {
-    static const char binchars[] = "01";
     byte value;
-    Wire.beginTransmission(DS3232_I2C_ADDRESS);
-    Wire.write(0x0E);  // sends 0Eh - Control register
-    Wire.endTransmission();
-    Wire.requestFrom(DS3232_I2C_ADDRESS, 2);
-    for (byte i = 0; i < 2; i++) {
-      if (i) { Serial.write("Stat: "); } else { Serial.write("Ctrl: "); }
-        value = Wire.read();
-        Serial.print(binchars[(value >> 7) & 0x01]);
-        Serial.print(binchars[(value >> 6) & 0x01]);
-        Serial.print(binchars[(value >> 5) & 0x01]);
-        Serial.print(binchars[(value >> 4) & 0x01]);
-        Serial.print(binchars[(value >> 3) & 0x01]);
-        Serial.print(binchars[(value >> 2) & 0x01]);
-        Serial.print(binchars[(value >> 1) & 0x01]);
-        Serial.println(binchars[value & 0x01]);
-    }
+    value = DS3232.readControlRegister();
+    Serial.write("Ctrl: ");
+    print_binary( value );
+    value = DS3232.readStatusRegister();
+    Serial.write("Stat: ");
+    print_binary( value );
 }
 
 void cmdMap(const char *)
