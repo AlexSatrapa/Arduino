@@ -14,7 +14,6 @@
 // D5 PCINT21, OC0B, T1, PD5, PWM
 // D6 PCINT22, OC0A, AIN0, PD6, PWM
 // D7 PCINT23, AIN1, PD7
-#define LED_PIN 7
 
 // Port B
 // D8 PCINT0, CLK0, ICP1, PB0
@@ -62,7 +61,6 @@
 // A3 PF4 ADC4 TCK
 // A4 PF1 ADC1
 // A5 PF0 ADC0
-
 
 #endif
 

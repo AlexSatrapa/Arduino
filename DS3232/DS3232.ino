@@ -50,12 +50,10 @@ Freetronics RTC -> Freetronics Eleven
 #include <DS3232RTC.h>  // DS3232 library that returns time as a time_t
 #include <DS3234.h>
 #include <RTC.h>
-#include <BlinkLED.h>
 #include "pins.h"
 
 DS3232RTC DS3232 = DS3232RTC();
 DS3234RTC *DS3234;
-BlinkLED heartbeat( LED_PIN, 280, 1200 );
 
 char buffer[64];
 size_t buflen;
@@ -117,7 +115,6 @@ bool matchString(const char *name, const char *str, int len);
 void setup() {
     Serial.begin(115200);
     buflen = 0;
-    pinMode(LED_PIN, OUTPUT);
 
     cmdHelp(0);
 
@@ -138,7 +135,6 @@ void setup() {
 }
 
 void loop() {
-    heartbeat.loop();
     if (ds3232_alarmed or ds3234_alarmed) showTrigger();
 
     if (Serial.available()) {
