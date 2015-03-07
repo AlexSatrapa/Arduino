@@ -306,6 +306,7 @@ void cmdDate(const char *args)
         tm.Second = 0;
         tm.Wday = 0; // Ask Time library to calculate day of week.
         DS3232.writeDate(tm);
+        DS3234.writeDate(tm);
         Serial.print("Date has been set to: ");
     } /* */
 
