@@ -7,6 +7,7 @@
 // Pin 1 UART TX, PCINT17
 // Pin 2 interrupt 0, PCINT18
 // Pin 3 interrupt 1, PCINT19, OC2B, PWM output
+#define BLUE_PIN 3
 // Pin 4 PCINT20/XCK/T0
 // Pin 5 PCINT21/OC0B/T1, PWM
 // Pin 6 PCINT22/OC0A/AIN0, PWM
