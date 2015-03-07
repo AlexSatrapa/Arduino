@@ -58,6 +58,7 @@ DS3234RTC DS3234 = DS3234RTC(DS3234_SS_PIN);
 char buffer[64];
 size_t buflen;
 bool led_on = false;
+tmElements_t alarmSetting;
 volatile bool ds3232_alarmed = false;
 volatile bool ds3234_alarmed = false;
 
@@ -115,24 +116,31 @@ bool matchString(const char *name, const char *str, int len);
 void setup() {
     Serial.begin(115200);
     SPI.begin();
+    Wire.begin();
+
+    alarmSetting.Year = 15; // type only supports 255, RTC only supports 0-99
+    alarmSetting.Wday = 1;
+    alarmSetting.Day = 8;
+    alarmSetting.Hour = 9;
+    alarmSetting.Minute = 30;
+    alarmSetting.Second = 13;
+
+    DS3232.set33kHzOutput(false);
+    DS3232.clearAlarmFlag(3);  // 3 is both (1+2)
+    DS3232.writeAlarm(1, alarmModeHoursMatch, alarmSetting);
+    DS3232.writeAlarm(2, alarmModeDayMatch, alarmSetting);
+    DS3232.setSQIMode(sqiModeAlarmBoth);
+    attachInterrupt(1, ds3232Alarm, FALLING);
+
+    DS3234.set33kHzOutput(false);
+    DS3234.clearAlarmFlag(3);
+    DS3234.writeAlarm(1, alarmModeMinutesMatch, alarmSetting);
+    DS3234.writeAlarm(2, alarmModePerMinute, alarmSetting);
+    DS3234.setSQIMode(sqiModeAlarmBoth);
+    attachInterrupt(0, ds3234Alarm, FALLING);
 
     buflen = 0;
     cmdHelp(0);
-
-    DS3232.set33kHzOutput(false);
-
-    // Wire SQI pin to pin 2 on Uno, Ethernet & Mega; pin 3 on Leonardo
-    // See: http://www.arduino.cc/en/Reference/AttachInterrupt
-    DS3232.clearAlarmFlag(3);  // 3 is both (1+2)
-    ds3232_alarmed = false;
-    attachInterrupt(1, ds3232Alarm, FALLING);
-
-    uint8_t flags[5] = { 0, 1, 1, 1, 1 };
-    SPI.beginTransaction(DS3234.spi_settings);
-    DS3234_set_a1(DS3234_SS_PIN, 00, 10, 22, 0, flags);
-    DS3234_clear_a1f(DS3234_SS_PIN);
-    SPI.endTransaction();
-    attachInterrupt(0, ds3234Alarm, FALLING);
 }
 
 void loop() {
@@ -186,13 +194,13 @@ void showTrigger()
          ds3232_alarmed = false;
     }
     if(ds3234_alarmed) {
-        if(DS3234_triggered_a1(DS3234_SS_PIN)) {
+        if(DS3234.isAlarmFlag(1)) {
             Serial.println("DS3234 alarm 1 triggered");
-            DS3234_clear_a1f(DS3234_SS_PIN);
+            DS3234.clearAlarmFlag(1);
         }
-        if(DS3234_triggered_a2(DS3234_SS_PIN)) {
+        if(DS3234.isAlarmFlag(2)) {
             Serial.println("DS3234 alarm 2 triggered");
-            DS3234_clear_a2f(DS3234_SS_PIN);
+            DS3234.clearAlarmFlag(2);
         }
         ds3234_alarmed = false;
     }
