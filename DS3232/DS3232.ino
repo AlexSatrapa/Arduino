@@ -53,7 +53,7 @@ Freetronics RTC -> Freetronics Eleven
 #include "pins.h"
 
 DS3232RTC DS3232 = DS3232RTC();
-DS3234RTC *DS3234;
+DS3234RTC DS3234 = DS3234RTC(DS3234_SS_PIN);
 
 char buffer[64];
 size_t buflen;
@@ -114,8 +114,9 @@ bool matchString(const char *name, const char *str, int len);
 
 void setup() {
     Serial.begin(115200);
-    buflen = 0;
+    SPI.begin();
 
+    buflen = 0;
     cmdHelp(0);
 
     DS3232.set33kHzOutput(false);
@@ -126,11 +127,11 @@ void setup() {
     ds3232_alarmed = false;
     attachInterrupt(1, ds3232Alarm, FALLING);
 
-    DS3234RTC foo = DS3234RTC(DS3234_SS_PIN, DS3234_INTCN | DS3234_A1IE);
-    DS3234 = &foo;
     uint8_t flags[5] = { 0, 1, 1, 1, 1 };
+    SPI.beginTransaction(DS3234.spi_settings);
     DS3234_set_a1(DS3234_SS_PIN, 00, 10, 22, 0, flags);
     DS3234_clear_a1f(DS3234_SS_PIN);
+    SPI.endTransaction();
     attachInterrupt(0, ds3234Alarm, FALLING);
 }
 
@@ -262,6 +263,15 @@ void cmdTime(const char *args)
     Serial.print(':');
     printDec2(tm.Second);
     Serial.println();
+
+    // Read the current time.
+    DS3234.read(tm);
+    printDec2(tm.Hour);
+    Serial.print(':');
+    printDec2(tm.Minute);
+    Serial.print(':');
+    printDec2(tm.Second);
+    Serial.println();
 }
 
 // "DATE" command.
@@ -306,7 +316,7 @@ void cmdDate(const char *args)
     Serial.print(months[tm.Month - 1]);
     Serial.println(tmYearToCalendar(tm.Year), DEC);  // NB! Remember tmYearToCalendar()
 
-    DS3234->read(tm);
+    DS3234.read(tm);
     if (tm.Wday > 0) Serial.print(days[tm.Wday - 1]);
     Serial.print(tm.Day, DEC);
     Serial.print(months[tm.Month - 1]);
