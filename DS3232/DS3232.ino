@@ -339,6 +339,12 @@ void cmdTemp(const char *args)
     } else {
         Serial.println("Temperature is not available");
     }
+    DS3234.readTemperature(tp);
+    float temp = tp.Temp + (tp.Decimal / 100);
+    Serial.print(temp);
+    Serial.print("'C (");
+    Serial.print(temperatureCToF(temp));
+    Serial.println("'F)");
 }
 
 void printAlarm(byte alarmNum, const alarmMode_t mode, const tmElements_t time)
