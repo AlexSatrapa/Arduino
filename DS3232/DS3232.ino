@@ -252,6 +252,7 @@ void cmdTime(const char *args)
             return;
         }
         DS3232.writeTime(tm);
+        DS3234.writeTime(tm);
         Serial.print("Time has been set to: ");
     }
 
