@@ -347,13 +347,13 @@ void cmdTemp(const char *args)
     Serial.println("'F)");
 }
 
-void printAlarm(byte alarmNum, const alarmMode_t mode, const tmElements_t time)
+void printAlarm(byte alarmNum, const alarmMode_t mode, const tmElements_t time, bool ison)
 {
     Serial.print("Alarm ");
     Serial.print(alarmNum, DEC);
 
     Serial.print(": INT ");
-    if (DS3232.isAlarmInterupt(alarmNum)) {
+    if (ison) {
         Serial.print("ON");
     } else {
         Serial.print("OFF");
@@ -411,11 +411,29 @@ void cmdAlarms(const char *args)
 {
     tmElements_t time;
     alarmMode_t mode;
+    bool ison;
+    Serial.println("DS3232:");
     for (byte alarmNum = 1; alarmNum <= 2; ++alarmNum) {
         DS3232.readAlarm(alarmNum, mode, time);
-        printAlarm(alarmNum, mode, time);
+        ison = DS3232.isAlarmInterrupt(alarmNum);
+        printAlarm(alarmNum, mode, time, ison);
+    }
+    Serial.println("DS3234:");
+    for (byte alarmNum = 1; alarmNum <= 2; ++alarmNum) {
+        DS3234.readAlarm(alarmNum, mode, time);
+        ison = DS3234.isAlarmInterrupt(alarmNum);
+        printAlarm(alarmNum, mode, time, ison);
     }
     showTrigger();
+
+    if (*args != '\0')
+    {
+        Serial.println("Clearing alarm flags");
+        DS3232.clearAlarmFlag(1);
+        DS3232.clearAlarmFlag(2);
+        DS3234.clearAlarmFlag(1);
+        DS3234.clearAlarmFlag(2);
+    }
 }
 
 const char s_OFF[] PROGMEM = "OFF";
@@ -425,6 +443,7 @@ void cmdAlarm(const char *args)
 {
     tmElements_t time;
     alarmMode_t mode;
+    bool ison;
 
     memset(&time, 0, sizeof(tmElements_t));
 
@@ -448,8 +467,8 @@ void cmdAlarm(const char *args)
                 return;
             }
             mode = alarmModeHoursMatch;
-            bool a1 = DS3232.isAlarmInterupt(1);
-            bool a2 = DS3232.isAlarmInterupt(2);
+            bool a1 = DS3232.isAlarmInterrupt(1);
+            bool a2 = DS3232.isAlarmInterrupt(2);
             if (alarmNum == 1) {
               a1 = true;
             } else {
@@ -467,8 +486,14 @@ void cmdAlarm(const char *args)
     }
 
     // Print the current state of the alarm.
+    Serial.println("DS3232:");
     DS3232.readAlarm(alarmNum, mode, time);
-    printAlarm(alarmNum, mode, time);
+    ison = DS3232.isAlarmInterrupt(alarmNum);
+    printAlarm(alarmNum, mode, time, ison);
+    Serial.println("DS3234:");
+    DS3234.readAlarm(alarmNum, mode, time);
+    ison = DS3234.isAlarmInterrupt(alarmNum);
+    printAlarm(alarmNum, mode, time, ison);
 }
 
 // "SRAM" command.
