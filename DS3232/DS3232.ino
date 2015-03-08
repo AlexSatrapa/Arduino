@@ -42,14 +42,13 @@ Freetronics RTC -> Freetronics Eleven
     RST         ->     not connected
 */
 
-#include <Wire.h>
 #include <SPI.h>
+#include <Wire.h>
 #include <Time.h>
 #include <avr/pgmspace.h>
 #include <string.h>
 #include <DS3232RTC.h>  // DS3232 library that returns time as a time_t
 #include <DS3234.h>
-#include <RTC.h>
 #include "pins.h"
 
 DS3232RTC DS3232 = DS3232RTC();
