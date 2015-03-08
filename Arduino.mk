@@ -345,6 +345,9 @@ clean:
 	rm -f $(TARGET).elf $(TARGET).hex $(ARDUINOLIB) *~
 	rm -rf .lib .dep
 
+realclean: clean
+	rm -rf libraries
+
 boards:
 	@echo "Available values for BOARD:"
 	@sed -nEe '/^#/d; /^[^.]+\.name=/p' $(BOARDSFILE) | \
