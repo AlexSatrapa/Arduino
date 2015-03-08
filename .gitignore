@@ -6,3 +6,5 @@ contrib/*
 .lib
 .dep
 *.o
+SPI
+Wire
