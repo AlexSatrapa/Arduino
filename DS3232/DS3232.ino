@@ -47,7 +47,7 @@ Freetronics RTC -> Freetronics Eleven
 #include <Time.h>
 #include <avr/pgmspace.h>
 #include <string.h>
-#include <DS3232RTC.h>  // DS3232 library that returns time as a time_t
+#include <DS3232RTC.h>
 #include <DS3234.h>
 #include "pins.h"
 
@@ -108,6 +108,7 @@ void ds3232Alarm();
 void ds3234Alarm();
 void showTrigger();
 void printDec2(int value);
+void printTime(tmElements_t tm);
 void printProgString(const char *str);
 void processCommand(const char *buf);
 bool matchString(const char *name, const char *str, int len);
@@ -121,20 +122,23 @@ void setup() {
     alarmSetting.Wday = 1;
     alarmSetting.Day = 8;
     alarmSetting.Hour = 9;
-    alarmSetting.Minute = 30;
+    alarmSetting.Minute = 54;
     alarmSetting.Second = 13;
 
     DS3232.set33kHzOutput(false);
     DS3232.clearAlarmFlag(3);  // 3 is both (1+2)
-    DS3232.writeAlarm(1, alarmModeHoursMatch, alarmSetting);
-    DS3232.writeAlarm(2, alarmModeDayMatch, alarmSetting);
+    DS3232.writeAlarm(1, alarmModeSecondsMatch, alarmSetting);
+    alarmSetting.Second = 15;
+    DS3232.writeAlarm(2, alarmModePerMinute, alarmSetting);
     DS3232.setSQIMode(sqiModeAlarmBoth);
     attachInterrupt(1, ds3232Alarm, FALLING);
 
     DS3234.set33kHzOutput(false);
     DS3234.clearAlarmFlag(3);
+    alarmSetting.Second = 17;
     DS3234.writeAlarm(1, alarmModeMinutesMatch, alarmSetting);
-    DS3234.writeAlarm(2, alarmModePerMinute, alarmSetting);
+    alarmSetting.Second = 19;
+    DS3234.writeAlarm(2, alarmModeHoursMatch, alarmSetting);
     DS3234.setSQIMode(sqiModeAlarmBoth);
     attachInterrupt(0, ds3234Alarm, FALLING);
 
@@ -181,24 +185,32 @@ void ds3234Alarm() // Triggered when DS3234 alarm is fired
 
 void showTrigger()
 {
+    tmElements_t tm;
+
     if(ds3232_alarmed) {
-         if (DS3232.isAlarmFlag(1)) {
-              Serial.println("DS3232 alarm 1 triggered");
-              DS3232.clearAlarmFlag(1);
-         }
-         if (DS3232.isAlarmFlag(2)) {
-              Serial.println("DS3232 alarm 2 triggered");
-              DS3232.clearAlarmFlag(2);
-         }
-         ds3232_alarmed = false;
+        DS3232.read(tm);
+        if (DS3232.isAlarmFlag(1)) {
+            printTime(tm);
+            Serial.println(": DS3232 alarm 1 triggered");
+            DS3232.clearAlarmFlag(1);
+        }
+        if (DS3232.isAlarmFlag(2)) {
+            printTime(tm);
+            Serial.println(": DS3232 alarm 2 triggered");
+            DS3232.clearAlarmFlag(2);
+        }
+        ds3232_alarmed = false;
     }
     if(ds3234_alarmed) {
+        DS3234.read(tm);
         if(DS3234.isAlarmFlag(1)) {
-            Serial.println("DS3234 alarm 1 triggered");
+            printTime(tm);
+            Serial.println(": DS3234 alarm 1 triggered");
             DS3234.clearAlarmFlag(1);
         }
         if(DS3234.isAlarmFlag(2)) {
-            Serial.println("DS3234 alarm 2 triggered");
+            printTime(tm);
+            Serial.println(": DS3234 alarm 2 triggered");
             DS3234.clearAlarmFlag(2);
         }
         ds3234_alarmed = false;
@@ -240,6 +252,15 @@ byte readField(const char *args, int &posn, int maxValue)
         return value;
 }
 
+void printTime(tmElements_t tm)
+{
+    printDec2(tm.Hour);
+    Serial.print(':');
+    printDec2(tm.Minute);
+    Serial.print(':');
+    printDec2(tm.Second);
+}
+
 // "TIME" command.
 void cmdTime(const char *args)
 {
@@ -265,20 +286,12 @@ void cmdTime(const char *args)
 
     // Read the current time.
     DS3232.read(tm);
-    printDec2(tm.Hour);
-    Serial.print(':');
-    printDec2(tm.Minute);
-    Serial.print(':');
-    printDec2(tm.Second);
+    printTime(tm);
     Serial.println();
 
     // Read the current time.
     DS3234.read(tm);
-    printDec2(tm.Hour);
-    Serial.print(':');
-    printDec2(tm.Minute);
-    Serial.print(':');
-    printDec2(tm.Second);
+    printTime(tm);
     Serial.println();
 }
 
