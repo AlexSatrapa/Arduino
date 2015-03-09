@@ -23,5 +23,5 @@
 	path = libraries/Time
 	url = git@github.com:AlexSatrapa/Time.git
 [submodule "libraries/RTC"]
-	path = libraries/RTC
+	path = libraries/DSRTC
 	url = git@github.com:AlexSatrapa/DSRTC.git
