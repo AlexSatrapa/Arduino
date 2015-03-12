@@ -104,6 +104,7 @@ inline void print_binary(uint8_t value)
 }
 
 void cmdHelp(const char *);
+void cmdRegisters(const char *);
 void ds3232Alarm();
 void ds3234Alarm();
 void showTrigger();
@@ -126,24 +127,36 @@ void setup() {
     alarmSetting.Second = 13;
 
     DS3232.set33kHzOutput(false);
-    DS3232.clearAlarmFlag(3);  // 3 is both (1+2)
     DS3232.writeAlarm(1, alarmModeSecondsMatch, alarmSetting);
     alarmSetting.Second = 15;
     DS3232.writeAlarm(2, alarmModePerMinute, alarmSetting);
     DS3232.setSQIMode(sqiModeAlarmBoth);
     attachInterrupt(1, ds3232Alarm, FALLING);
+    DS3232.setOscillatorStopFlag(false);
 
     DS3234.set33kHzOutput(false);
-    DS3234.clearAlarmFlag(3);
     alarmSetting.Second = 17;
     DS3234.writeAlarm(1, alarmModeMinutesMatch, alarmSetting);
     alarmSetting.Second = 19;
     DS3234.writeAlarm(2, alarmModeHoursMatch, alarmSetting);
     DS3234.setSQIMode(sqiModeAlarmBoth);
     attachInterrupt(0, ds3234Alarm, FALLING);
+    DS3234.setOscillatorStopFlag(false);
+
+    Serial.println("CLEARING SERIAL OUTPUT");
+
+    DS3232.setTCXORate( tempScanRate256sec );
+    DS3234.setTCXORate( tempScanRate512sec );
+    cmdRegisters(NULL);
+
+    DS3232.setTCXORate( tempScanRate64sec );
+    DS3234.setTCXORate( tempScanRate64sec );
+    cmdRegisters(NULL);
 
     buflen = 0;
     cmdHelp(0);
+    DS3232.clearAlarmFlag(3);
+    DS3234.clearAlarmFlag(3);
 }
 
 void loop() {
@@ -573,10 +586,18 @@ void cmdDump(const char *args)
 void cmdRegisters(const char *)
 {
     byte value;
+    Serial.println("DS3232:");
     value = DS3232.readControlRegister();
     Serial.write("Ctrl: ");
     print_binary( value );
     value = DS3232.readStatusRegister();
+    Serial.write("Stat: ");
+    print_binary( value );
+    Serial.println("DS3234:");
+    value = DS3234.readControlRegister();
+    Serial.write("Ctrl: ");
+    print_binary( value );
+    value = DS3234.readStatusRegister();
     Serial.write("Stat: ");
     print_binary( value );
 }
@@ -760,3 +781,5 @@ void processCommand(const char *buf)
     Serial.println("Unknown command, valid commands are:");
     cmdHelp(0);
 }
+
+// -*- coding: utf-8; tab-width: 4; indent-tabs-mode: nil -*-
