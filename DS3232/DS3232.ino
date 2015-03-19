@@ -31,15 +31,26 @@ command and response system.  Configure the Serial Monitor to use
 
 How to wire the Freetronics RTC module
 --------------------------------------
-Freetronics RTC -> Freetronics Eleven
+Freetronics RTC -> Arduino Uno
     GND         ->     GND
     VCC         ->     5V
-    SCL         ->     D5
-    SDA         ->     D4
+    SCL         ->     A5
+    SDA         ->     A4
     BAT         ->     not connected
     32K         ->     not connected
-    SQI         ->     D2 (this is INT0 on UNO boards)
+    SQI         ->     D3 (this is INT1 on UNO boards)
     RST         ->     not connected
+
+How to wire the SparkFun DeadOn RTC module
+------------------------------------------
+SparkFun DeadOn -> Arduino Uno
+    GND         -> GND
+    VCC         -> 5V
+    SQW         -> D2
+    CLK         -> D13
+    MISO        -> D12
+    MOSI        -> D11
+    SS          -> D10
 */
 
 #include <SPI.h>
@@ -47,7 +58,7 @@ Freetronics RTC -> Freetronics Eleven
 #include <Time.h>
 #include <avr/pgmspace.h>
 #include <string.h>
-#include <DS3232RTC.h>  // DS3232 library that returns time as a time_t
+#include <DS3232RTC.h>
 #include <DS3234.h>
 #include "pins.h"
 
@@ -57,6 +68,7 @@ DS3234RTC DS3234 = DS3234RTC(DS3234_SS_PIN);
 char buffer[64];
 size_t buflen;
 bool led_on = false;
+alarmMode_t alarmMode = alarmModeUnknown;
 tmElements_t alarmSetting;
 volatile bool ds3232_alarmed = false;
 volatile bool ds3234_alarmed = false;
@@ -104,10 +116,12 @@ inline void print_binary(uint8_t value)
 }
 
 void cmdHelp(const char *);
+void cmdRegisters(const char *);
 void ds3232Alarm();
 void ds3234Alarm();
 void showTrigger();
 void printDec2(int value);
+void printTime(tmElements_t tm);
 void printProgString(const char *str);
 void processCommand(const char *buf);
 bool matchString(const char *name, const char *str, int len);
@@ -117,29 +131,96 @@ void setup() {
     SPI.begin();
     Wire.begin();
 
+    // We're actually setting the time here
     alarmSetting.Year = 15; // type only supports 255, RTC only supports 0-99
+    alarmSetting.Month = 3;
     alarmSetting.Wday = 1;
     alarmSetting.Day = 8;
-    alarmSetting.Hour = 9;
-    alarmSetting.Minute = 30;
+    alarmSetting.Hour = 21;
+    alarmSetting.Minute = 43;
+    alarmSetting.Second = 57;
+
+    DS3232.write(alarmSetting);
+    DS3234.write(alarmSetting);
+
+    // Now set some alarms
+    alarmSetting.Minute = 44;
     alarmSetting.Second = 13;
 
     DS3232.set33kHzOutput(false);
-    DS3232.clearAlarmFlag(3);  // 3 is both (1+2)
-    DS3232.writeAlarm(1, alarmModeHoursMatch, alarmSetting);
-    DS3232.writeAlarm(2, alarmModeDayMatch, alarmSetting);
-    DS3232.setSQIMode(sqiModeAlarmBoth);
+    DS3232.setSQIMode(sqiModeNone);
+    DS3232.writeAlarm(1, alarmModeSecondsMatch, alarmSetting);
+    alarmSetting.Second = 15;
+    DS3232.writeAlarm(2, alarmModePerMinute, alarmSetting);
     attachInterrupt(1, ds3232Alarm, FALLING);
+    DS3232.setSQIMode(sqiModeAlarmBoth);
+    DS3232.setOscillatorStopFlag(false);
 
     DS3234.set33kHzOutput(false);
-    DS3234.clearAlarmFlag(3);
+    DS3234.setSQIMode(sqiModeNone);
+    alarmSetting.Second = 17;
     DS3234.writeAlarm(1, alarmModeMinutesMatch, alarmSetting);
-    DS3234.writeAlarm(2, alarmModePerMinute, alarmSetting);
-    DS3234.setSQIMode(sqiModeAlarmBoth);
+    alarmSetting.Second = 19;
+    DS3234.writeAlarm(2, alarmModeHoursMatch, alarmSetting);
     attachInterrupt(0, ds3234Alarm, FALLING);
+    DS3234.setSQIMode(sqiModeAlarmBoth);
+    DS3234.setOscillatorStopFlag(false);
+
+    Serial.println("ALARM CLOCKS ARE GO!");
+
+    DS3232.setTCXORate( tempScanRate256sec );
+    DS3234.setTCXORate( tempScanRate512sec );
+    cmdRegisters(NULL);
+
+    DS3232.setTCXORate( tempScanRate64sec );
+    DS3234.setTCXORate( tempScanRate64sec );
+    cmdRegisters(NULL);
+
+    DS3232.readAlarm(1, alarmMode, alarmSetting);
+    if (
+        alarmMode == alarmModeSecondsMatch and
+        alarmSetting.Second == 13
+        ) {
+        Serial.println("Alarm 1 reads correctly");
+    } else {
+        Serial.println("Alarm 1 reads incorrectly");
+    }
+    DS3232.readAlarm(2, alarmMode, alarmSetting);
+    if (
+        alarmMode == alarmModePerMinute and
+        alarmSetting.Second == 0
+        ) {
+        Serial.println("Alarm 2 reads correctly");
+    } else {
+        Serial.println("Alarm 2 reads incorrectly");
+    }
+
+    DS3234.readAlarm(1, alarmMode, alarmSetting);
+    if (
+        alarmMode == alarmModeMinutesMatch and
+        alarmSetting.Second == 17 and
+        alarmSetting.Minute == 44
+        ) {
+        Serial.println("Alarm 1 reads correctly");
+    } else {
+        Serial.println("Alarm 1 reads incorrectly");
+    }
+    DS3234.readAlarm(2, alarmMode, alarmSetting);
+    if (
+        alarmMode == alarmModeHoursMatch and
+        alarmSetting.Second == 0 and
+        alarmSetting.Minute == 44 and
+        alarmSetting.Hour == 21
+        ) {
+        Serial.println("Alarm 2 reads correctly");
+    } else {
+        Serial.println("Alarm 2 reads incorrectly");
+    }   
 
     buflen = 0;
     cmdHelp(0);
+    DS3232.clearAlarmFlag(3);
+    DS3234.clearAlarmFlag(3);
 }
 
 void loop() {
@@ -181,24 +262,32 @@ void ds3234Alarm() // Triggered when DS3234 alarm is fired
 
 void showTrigger()
 {
+    tmElements_t tm;
+
     if(ds3232_alarmed) {
-         if (DS3232.isAlarmFlag(1)) {
-              Serial.println("DS3232 alarm 1 triggered");
-              DS3232.clearAlarmFlag(1);
-         }
-         if (DS3232.isAlarmFlag(2)) {
-              Serial.println("DS3232 alarm 2 triggered");
-              DS3232.clearAlarmFlag(2);
-         }
-         ds3232_alarmed = false;
+        DS3232.read(tm);
+        if (DS3232.isAlarmFlag(1)) {
+            printTime(tm);
+            Serial.println(": DS3232 alarm 1 triggered");
+            DS3232.clearAlarmFlag(1);
+        }
+        if (DS3232.isAlarmFlag(2)) {
+            printTime(tm);
+            Serial.println(": DS3232 alarm 2 triggered");
+            DS3232.clearAlarmFlag(2);
+        }
+        ds3232_alarmed = false;
     }
     if(ds3234_alarmed) {
+        DS3234.read(tm);
         if(DS3234.isAlarmFlag(1)) {
-            Serial.println("DS3234 alarm 1 triggered");
+            printTime(tm);
+            Serial.println(": DS3234 alarm 1 triggered");
             DS3234.clearAlarmFlag(1);
         }
         if(DS3234.isAlarmFlag(2)) {
-            Serial.println("DS3234 alarm 2 triggered");
+            printTime(tm);
+            Serial.println(": DS3234 alarm 2 triggered");
             DS3234.clearAlarmFlag(2);
         }
         ds3234_alarmed = false;
@@ -240,6 +329,15 @@ byte readField(const char *args, int &posn, int maxValue)
         return value;
 }
 
+void printTime(tmElements_t tm)
+{
+    printDec2(tm.Hour);
+    Serial.print(':');
+    printDec2(tm.Minute);
+    Serial.print(':');
+    printDec2(tm.Second);
+}
+
 // "TIME" command.
 void cmdTime(const char *args)
 {
@@ -265,20 +363,12 @@ void cmdTime(const char *args)
 
     // Read the current time.
     DS3232.read(tm);
-    printDec2(tm.Hour);
-    Serial.print(':');
-    printDec2(tm.Minute);
-    Serial.print(':');
-    printDec2(tm.Second);
+    printTime(tm);
     Serial.println();
 
     // Read the current time.
     DS3234.read(tm);
-    printDec2(tm.Hour);
-    Serial.print(':');
-    printDec2(tm.Minute);
-    Serial.print(':');
-    printDec2(tm.Second);
+    printTime(tm);
     Serial.println();
 }
 
@@ -560,10 +650,18 @@ void cmdDump(const char *args)
 void cmdRegisters(const char *)
 {
     byte value;
+    Serial.println("DS3232:");
     value = DS3232.readControlRegister();
     Serial.write("Ctrl: ");
     print_binary( value );
     value = DS3232.readStatusRegister();
+    Serial.write("Stat: ");
+    print_binary( value );
+    Serial.println("DS3234:");
+    value = DS3234.readControlRegister();
+    Serial.write("Ctrl: ");
+    print_binary( value );
+    value = DS3234.readStatusRegister();
     Serial.write("Stat: ");
     print_binary( value );
 }
@@ -747,3 +845,5 @@ void processCommand(const char *buf)
     Serial.println("Unknown command, valid commands are:");
     cmdHelp(0);
 }
+
+// -*- coding: utf-8; tab-width: 4; indent-tabs-mode: nil -*-
