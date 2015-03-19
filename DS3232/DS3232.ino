@@ -68,6 +68,7 @@ DS3234RTC DS3234 = DS3234RTC(DS3234_SS_PIN);
 char buffer[64];
 size_t buflen;
 bool led_on = false;
+alarmMode_t alarmMode = alarmModeUnknown;
 tmElements_t alarmSetting;
 volatile bool ds3232_alarmed = false;
 volatile bool ds3234_alarmed = false;
@@ -163,6 +164,47 @@ void setup() {
     DS3232.setTCXORate( tempScanRate64sec );
     DS3234.setTCXORate( tempScanRate64sec );
     cmdRegisters(NULL);
+
+    DS3232.readAlarm(1, alarmMode, alarmSetting);
+    if (
+        alarmMode == alarmModeSecondsMatch and
+        alarmSetting.Second == 13
+        ) {
+        Serial.println("Alarm 1 reads correctly");
+    } else {
+        Serial.println("Alarm 1 reads incorrectly");
+    }
+    DS3232.readAlarm(2, alarmMode, alarmSetting);
+    if (
+        alarmMode == alarmModePerMinute and
+        alarmSetting.Second == 0
+        ) {
+        Serial.println("Alarm 2 reads correctly");
+    } else {
+        Serial.println("Alarm 2 reads incorrectly");
+    }
+
+    DS3234.readAlarm(1, alarmMode, alarmSetting);
+    if (
+        alarmMode == alarmModeMinutesMatch and
+        alarmSetting.Second == 17 and
+        alarmSetting.Minute == 54
+        ) {
+        Serial.println("Alarm 1 reads correctly");
+    } else {
+        Serial.println("Alarm 1 reads incorrectly");
+    }
+    DS3234.readAlarm(2, alarmMode, alarmSetting);
+    if (
+        alarmMode == alarmModeHoursMatch and
+        alarmSetting.Second == 0 and
+        alarmSetting.Minute == 54 and
+        alarmSetting.Hour == 9
+        ) {
+        Serial.println("Alarm 2 reads correctly");
+    } else {
+        Serial.println("Alarm 2 reads incorrectly");
+    }   
 
     buflen = 0;
     cmdHelp(0);
