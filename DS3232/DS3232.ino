@@ -131,31 +131,42 @@ void setup() {
     SPI.begin();
     Wire.begin();
 
+    // We're actually setting the time here
     alarmSetting.Year = 15; // type only supports 255, RTC only supports 0-99
+    alarmSetting.Month = 3;
     alarmSetting.Wday = 1;
     alarmSetting.Day = 8;
-    alarmSetting.Hour = 9;
-    alarmSetting.Minute = 54;
+    alarmSetting.Hour = 21;
+    alarmSetting.Minute = 43;
+    alarmSetting.Second = 57;
+
+    DS3232.write(alarmSetting);
+    DS3234.write(alarmSetting);
+
+    // Now set some alarms
+    alarmSetting.Minute = 44;
     alarmSetting.Second = 13;
 
     DS3232.set33kHzOutput(false);
+    DS3232.setSQIMode(sqiModeNone);
     DS3232.writeAlarm(1, alarmModeSecondsMatch, alarmSetting);
     alarmSetting.Second = 15;
     DS3232.writeAlarm(2, alarmModePerMinute, alarmSetting);
-    DS3232.setSQIMode(sqiModeAlarmBoth);
     attachInterrupt(1, ds3232Alarm, FALLING);
+    DS3232.setSQIMode(sqiModeAlarmBoth);
     DS3232.setOscillatorStopFlag(false);
 
     DS3234.set33kHzOutput(false);
+    DS3234.setSQIMode(sqiModeNone);
     alarmSetting.Second = 17;
     DS3234.writeAlarm(1, alarmModeMinutesMatch, alarmSetting);
     alarmSetting.Second = 19;
     DS3234.writeAlarm(2, alarmModeHoursMatch, alarmSetting);
-    DS3234.setSQIMode(sqiModeAlarmBoth);
     attachInterrupt(0, ds3234Alarm, FALLING);
+    DS3234.setSQIMode(sqiModeAlarmBoth);
     DS3234.setOscillatorStopFlag(false);
 
-    Serial.println("CLEARING SERIAL OUTPUT");
+    Serial.println("ALARM CLOCKS ARE GO!");
 
     DS3232.setTCXORate( tempScanRate256sec );
     DS3234.setTCXORate( tempScanRate512sec );
@@ -188,7 +199,7 @@ void setup() {
     if (
         alarmMode == alarmModeMinutesMatch and
         alarmSetting.Second == 17 and
-        alarmSetting.Minute == 54
+        alarmSetting.Minute == 44
         ) {
         Serial.println("Alarm 1 reads correctly");
     } else {
@@ -198,8 +209,8 @@ void setup() {
     if (
         alarmMode == alarmModeHoursMatch and
         alarmSetting.Second == 0 and
-        alarmSetting.Minute == 54 and
-        alarmSetting.Hour == 9
+        alarmSetting.Minute == 44 and
+        alarmSetting.Hour == 21
         ) {
         Serial.println("Alarm 2 reads correctly");
     } else {
