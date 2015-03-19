@@ -14,7 +14,7 @@
 	path = libraries/DS3234
 	url = git@github.com:AlexSatrapa/ds3234.git
 [submodule "libraries/DS3232"]
-	path = libraries/DS3232RTC
+	path = libraries/DS3232
 	url = git@github.com:AlexSatrapa/DS3232RTC.git
 [submodule "libraries/FTRGBLED"]
 	path = libraries/FTRGBLED
