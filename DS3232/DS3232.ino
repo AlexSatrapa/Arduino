@@ -31,15 +31,26 @@ command and response system.  Configure the Serial Monitor to use
 
 How to wire the Freetronics RTC module
 --------------------------------------
-Freetronics RTC -> Freetronics Eleven
+Freetronics RTC -> Arduino Uno
     GND         ->     GND
     VCC         ->     5V
-    SCL         ->     D5
-    SDA         ->     D4
+    SCL         ->     A5
+    SDA         ->     A4
     BAT         ->     not connected
     32K         ->     not connected
-    SQI         ->     D2 (this is INT0 on UNO boards)
+    SQI         ->     D3 (this is INT1 on UNO boards)
     RST         ->     not connected
+
+How to wire the SparkFun DeadOn RTC module
+------------------------------------------
+SparkFun DeadOn -> Arduino Uno
+    GND         -> GND
+    VCC         -> 5V
+    SQW         -> D2
+    CLK         -> D13
+    MISO        -> D12
+    MOSI        -> D11
+    SS          -> D10
 */
 
 #include <SPI.h>
