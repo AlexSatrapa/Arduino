@@ -1,8 +1,6 @@
 #include "pins.h"
 #include <SSC.h>
 #include <DS3234.h>
-#include <Wire.h>
-#include <SPI.h>
 #include <Sleep.h>
 
 const int MIN_RAW = 1638;
@@ -10,16 +8,16 @@ const int MAX_RAW = 14746;
 const int BUFF_MAX = 80;
 const int ERROR = (MAX_RAW - MIN_RAW) / 400; // 0.25%
 const int HIGH_CUTOUT = MAX_RAW * 0.9;
-tmElements_t time_buf;
+dsrtc_calendar_t time_buf;
 volatile bool ALARM = false;
 
 SSC pressure_sensor(0x00, PRESSURE);
-DS3234 RTC = DS3234(RTC_SS_PIN);
+DS3234 rtc(RTC_SS_PIN, DS323X_INTCN || DS323X_EOSC);
 
 void print_datestamp() {
 	char buff[BUFF_MAX];
-	tmElements_t t;
-	RTC.read(t);
+	dsrtc_calendar_t t;
+	rtc.read(t);
 
 	// Current time
 	snprintf(buff, BUFF_MAX, "%d/%02d/%02dT%02d:%02d:%02d", t.Year, t.Month, t.Day, t.Hour, t.Minute, t.Second);
@@ -107,18 +105,18 @@ void setup() {
 	pressure_sensor.update();
 	pressure_sensor.stop();
 	attachInterrupt(0, int0_isr, LOW);
-	RTC.writeAlarm(2, alarmModePerMinute, time_buf);
-	RTC.setSQIMode(sqiModeAlarm2);
+	rtc.writeAlarm(2, alarmModePerMinute, time_buf);
+	rtc.setSQIMode(sqiModeAlarm2);
 }
 
 void loop() {
 	// put your main code here, to run repeatedly:
 	if (ALARM) {
 		getPressureReading();
-		RTC.clearAlarmFlag(3);
+		rtc.clearAlarmFlag(3);
 		ALARM = false;
 		attachInterrupt(0, int0_isr, LOW);
-		Serial.flush();
 	}
+	Serial.flush();
 	powerDown();
 }

@@ -1,2 +1,3 @@
 #include <DSRTC.h>
-#include <Time.h>
+#include <SPI.h>
+#include <Wire.h>
