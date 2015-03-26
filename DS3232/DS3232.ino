@@ -55,7 +55,6 @@ SparkFun DeadOn -> Arduino Uno
 
 #include <SPI.h>
 #include <Wire.h>
-#include <Time.h>
 #include <avr/pgmspace.h>
 #include <string.h>
 #include <DS3232.h>
@@ -388,7 +387,7 @@ void cmdDate(const char *args)
         }
         tm.Day = (byte)(value % 100);
         tm.Month = (byte)((value / 100) % 100);
-        tm.Year = CalendarYrToTm( (unsigned int)(value / 10000) );
+        tm.Year = (unsigned int)(value / 10000) - 1970;
         if (tm.Month < 1 || tm.Month > 12) {
             Serial.println("Month must be between 1 and 12");
             return;
@@ -413,13 +412,13 @@ void cmdDate(const char *args)
     if (tm.Wday > 0) Serial.print(days[tm.Wday - 1]);
     Serial.print(tm.Day, DEC);
     Serial.print(months[tm.Month - 1]);
-    Serial.println(tmYearToCalendar(tm.Year), DEC);  // NB! Remember tmYearToCalendar()
+    Serial.println(tm.Year + 1970, DEC);  // NB! Remember tmYearToCalendar()
 
     RTCB.read(tm);
     if (tm.Wday > 0) Serial.print(days[tm.Wday - 1]);
     Serial.print(tm.Day, DEC);
     Serial.print(months[tm.Month - 1]);
-    Serial.println(tmYearToCalendar(tm.Year), DEC);  // NB! Remember tmYearToCalendar() */
+    Serial.println(tm.Year + 1970, DEC);  // NB! Remember tmYearToCalendar() */
 }
 
 // "TEMP" command.
