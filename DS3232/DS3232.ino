@@ -69,7 +69,7 @@ char buffer[64];
 size_t buflen;
 bool led_on = false;
 alarmMode_t alarmMode = alarmModeUnknown;
-tmElements_t alarmSetting;
+dsrtc_calendar_t alarmSetting;
 volatile bool ds3232_alarmed = false;
 volatile bool ds3234_alarmed = false;
 
@@ -94,7 +94,7 @@ inline bool isLeapYear(unsigned int year)
         return (year % 4) == 0;
 }
 
-inline uint8_t monthLength(const tmElements_t *date)
+inline uint8_t monthLength(const dsrtc_calendar_t *date)
 {
     if (date->Month != 2 || !isLeapYear(date->Year))
         return monthLengths[date->Month - 1];
@@ -121,7 +121,7 @@ void ds3232Alarm();
 void ds3234Alarm();
 void showTrigger();
 void printDec2(int value);
-void printTime(tmElements_t tm);
+void printTime(dsrtc_calendar_t tm);
 void printProgString(const char *str);
 void processCommand(const char *buf);
 bool matchString(const char *name, const char *str, int len);
@@ -262,7 +262,7 @@ void ds3234Alarm() // Triggered when DS3234 alarm is fired
 
 void showTrigger()
 {
-    tmElements_t tm;
+    dsrtc_calendar_t tm;
 
     if(ds3232_alarmed) {
         RTCA.read(tm);
@@ -329,7 +329,7 @@ byte readField(const char *args, int &posn, int maxValue)
         return value;
 }
 
-void printTime(tmElements_t tm)
+void printTime(dsrtc_calendar_t tm)
 {
     printDec2(tm.Hour);
     Serial.print(':');
@@ -341,7 +341,7 @@ void printTime(tmElements_t tm)
 // "TIME" command.
 void cmdTime(const char *args)
 {
-    tmElements_t tm;
+    dsrtc_calendar_t tm;
 
     if (*args != '\0') {
         // Set the current time.
@@ -375,7 +375,7 @@ void cmdTime(const char *args)
 // "DATE" command.
 void cmdDate(const char *args)
 {
-    tmElements_t tm;
+    dsrtc_calendar_t tm;
 
     if (*args != '\0') {
         // Set the current date.
@@ -444,7 +444,7 @@ void cmdTemp(const char *args)
     Serial.println("'F)");
 }
 
-void printAlarm(byte alarmNum, const alarmMode_t mode, const tmElements_t time, bool ison)
+void printAlarm(byte alarmNum, const alarmMode_t mode, const dsrtc_calendar_t time, bool ison)
 {
     Serial.print("Alarm ");
     Serial.print(alarmNum, DEC);
@@ -506,7 +506,7 @@ void printAlarm(byte alarmNum, const alarmMode_t mode, const tmElements_t time, 
 // "ALARMS" command.
 void cmdAlarms(const char *args)
 {
-    tmElements_t time;
+    dsrtc_calendar_t time;
     alarmMode_t mode;
     bool ison;
     Serial.println("DS3232:");
@@ -538,11 +538,11 @@ const char s_OFF[] PROGMEM = "OFF";
 // "ALARM" command.
 void cmdAlarm(const char *args)
 {
-    tmElements_t time;
+    dsrtc_calendar_t time;
     alarmMode_t mode;
     bool ison;
 
-    memset(&time, 0, sizeof(tmElements_t));
+    memset(&time, 0, sizeof(dsrtc_calendar_t));
 
     int posn = 0;
     byte alarmNum = readField(args, posn, 2);
