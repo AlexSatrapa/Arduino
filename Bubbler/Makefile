@@ -1,4 +1,3 @@
-SERIALDEV=/dev/tty.usbmodem1441
 PORT_SPEED=115200
 BOARD=uno
 LIBRARYPATH=../libraries /Applications/Arduino.app/Contents/Resources/Java/libraries

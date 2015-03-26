@@ -6,6 +6,7 @@
 // Pin 0 UART RX, PCINT16
 // Pin 1 UART TX, PCINT17
 // Pin 2 interrupt 0, PCINT18
+#define RTC_ALARM_PIN 2
 // Pin 3 interrupt 1, PCINT19, OC2B, PWM output
 #define MOTOR 3
 
@@ -18,7 +19,7 @@
 // Pin 7 PCINT23/AIN1
 #define PRESSURE 7
 // Pin 8 PCINT0/CLK0/ICP1
-#define CLOCK 8
+#define RTC_SS_PIN 8
 // Pin 9 PCINT1/OC1A, PWM
 
 // SD Card (SPI) uses pins 10, 11, 12, 13
@@ -44,8 +45,8 @@ void setup_pins() {
 	pinMode(WARNLED, OUTPUT);
 	digitalWrite(PRESSURE, HIGH);
 	pinMode(PRESSURE, OUTPUT);
-	digitalWrite(CLOCK, HIGH);
-	pinMode(CLOCK, OUTPUT);
+	digitalWrite(RTC_SS_PIN, HIGH);
+	pinMode(RTC_SS_PIN, OUTPUT);
 	disable_pin( 9 );
 	}
 

@@ -1,24 +1,28 @@
-#include <SPI.h>
 #include "pins.h"
 #include <SSC.h>
+#include <DS3234.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <DS3234.h>
+#include <Sleep.h>
+
+const int MIN_RAW = 1638;
+const int MAX_RAW = 14746;
+const int BUFF_MAX = 80;
+const int ERROR = (MAX_RAW - MIN_RAW) / 400; // 0.25%
+const int HIGH_CUTOUT = MAX_RAW * 0.9;
+tmElements_t time_buf;
+volatile bool ALARM = false;
 
 SSC pressure_sensor(0x00, PRESSURE);
-int MIN_RAW = 1638;
-int MAX_RAW = 14746;
-int BUFF_MAX = 80;
-int ERROR = (MAX_RAW - MIN_RAW) / 400; // 0.25%
+DS3234 RTC = DS3234(RTC_SS_PIN);
 
 void print_datestamp() {
 	char buff[BUFF_MAX];
-	struct ts t;
-	DS3234_init(CLOCK, DS3234_INTCN);
-	DS3234_get(CLOCK, &t);
+	tmElements_t t;
+	RTC.read(t);
 
 	// Current time
-	snprintf(buff, BUFF_MAX, "%d/%02d/%02dT%02d:%02d:%02d", t.year, t.mon, t.mday, t.hour, t.min, t.sec);
+	snprintf(buff, BUFF_MAX, "%d/%02d/%02dT%02d:%02d:%02d", t.Year, t.Month, t.Day, t.Hour, t.Minute, t.Second);
 	Serial.print(buff);
 	}
 
@@ -55,7 +59,7 @@ void getPressureReading() {
 
 	while (charging) {
 		old_pressure = new_pressure;
-		highpressure = (new_pressure > (0.9 * MAX_RAW));
+		highpressure = (new_pressure > HIGH_CUTOUT);
 		if (highpressure) {
 			charging = 0;
 			Serial.println("HIGH PRESSURE!");
@@ -80,10 +84,14 @@ void getPressureReading() {
 	printReading();
 	}
 
+void int0_isr() {
+	detachInterrupt(0);
+	ALARM = true;
+	}
+
 void setup() {
 	// put your setup code here, to run once:
 	setup_pins();
-	DS3234_init(CLOCK, DS3234_INTCN || DS3234_EOSC);
 	Serial.begin(115200);
 	pressure_sensor.setMinRaw(1638);
 	pressure_sensor.setMaxRaw(14746);
@@ -98,10 +106,19 @@ void setup() {
 	pressure_sensor.start();
 	pressure_sensor.update();
 	pressure_sensor.stop();
+	attachInterrupt(0, int0_isr, LOW);
+	RTC.writeAlarm(2, alarmModePerMinute, time_buf);
+	RTC.setSQIMode(sqiModeAlarm2);
 }
 
 void loop() {
 	// put your main code here, to run repeatedly:
-	getPressureReading();
-	delay(60000);
+	if (ALARM) {
+		getPressureReading();
+		RTC.clearAlarmFlag(3);
+		ALARM = false;
+		attachInterrupt(0, int0_isr, LOW);
+		Serial.flush();
+	}
+	powerDown();
 }
