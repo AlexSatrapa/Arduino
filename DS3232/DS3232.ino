@@ -38,7 +38,7 @@ Freetronics RTC -> Arduino Uno
     SDA         ->     A4
     BAT         ->     not connected
     32K         ->     not connected
-    SQI         ->     D3 (this is INT1 on UNO boards)
+    SQI         ->     D3 (this is INT1 on Uno boards)
     RST         ->     not connected
 
 How to wire the SparkFun DeadOn RTC module
@@ -46,7 +46,7 @@ How to wire the SparkFun DeadOn RTC module
 SparkFun DeadOn -> Arduino Uno
     GND         -> GND
     VCC         -> 5V
-    SQW         -> D2
+    SQW         -> D2 (this is INT0 on Uno boards)
     CLK         -> D13
     MISO        -> D12
     MOSI        -> D11
