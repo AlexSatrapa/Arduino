@@ -94,9 +94,6 @@ void setup() {
 	// put your setup code here, to run once:
 	setup_pins();
 	Serial.begin(115200);
-	pressure_sensor.setMinRaw(1638);
-	pressure_sensor.setMaxRaw(14746);
-	pressure_sensor.setTemperatureCompensated(1);
 	Serial.println("Initialising pressure sensor.");
 	print_datestamp();
 	Serial.println();
