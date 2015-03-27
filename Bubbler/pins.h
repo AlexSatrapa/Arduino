@@ -30,15 +30,15 @@
 
 // ANALOGUE I/O
 
-void disable_pin( int pin ) {
+inline void disablePin( int pin ) {
 	pinMode( pin, INPUT );
 	digitalWrite( pin, HIGH );
 	}
 
-void setup_pins() {
+inline void setupPins() {
 	// Now configure the pins we're actually using
-	disable_pin( 1 );
-	disable_pin( 2 );
+	disablePin( 1 );
+	disablePin( 2 );
 	pinMode(MOTOR, OUTPUT);
 	pinMode(MOTORLED, OUTPUT);
 	pinMode(READINGLED, OUTPUT);
@@ -47,7 +47,7 @@ void setup_pins() {
 	pinMode(PRESSURE, OUTPUT);
 	digitalWrite(RTC_SS_PIN, HIGH);
 	pinMode(RTC_SS_PIN, OUTPUT);
-	disable_pin( 9 );
+	disablePin( 9 );
 	}
 
 #endif
