@@ -1,5 +1,5 @@
 #include "pins.h"
-#include <SSC.h>
+#include <HSCDANN005PGSA5.h>
 #include <DS3234.h>
 #include <Sleep.h>
 
@@ -11,7 +11,7 @@ const int HIGH_CUTOUT = MAX_RAW * 0.9;
 dsrtc_calendar_t time_buf;
 volatile bool ALARM = false;
 
-SSC pressure_sensor(0x00, PRESSURE);
+HSCDANN005PGSA5 pressure_sensor(PRESSURE);
 DS3234 rtc(RTC_SS_PIN, DS323X_INTCN || DS323X_EOSC);
 
 void print_datestamp() {
@@ -24,12 +24,17 @@ void print_datestamp() {
 	Serial.print(buff);
 	}
 
+void print_values() {
+	char buff[BUFF_MAX];
+	int raw_press = pressure_sensor.pressure_Raw();
+	int raw_temp = pressure_sensor.temperature_Raw();
+	snprintf(buff, BUFF_MAX, ", %d, %d", raw_press, raw_temp);
+	Serial.println(buff);
+	}
+
 void printReading() {
 	print_datestamp();
-	Serial.print(", ");
-	Serial.print(pressure_sensor.pressure());
-	Serial.print(", ");
-	Serial.println(pressure_sensor.temperature());
+	print_values();
 	}
 
 /*
@@ -42,8 +47,6 @@ How a reading is taken:
 3. If the pressure in the tube doesn't change significantly (i.e.: by more than the margin of error of the sensor), consider the tube evacuated, and the air pressure to be at equilibrium with the water pressure.
 
 4. If the pressure does change, go back to step 1.
-
-There is some finessing required in order to ensure that each "blow" is likely to change the overall pressure.
 */
 void getPressureReading() {
 	boolean charging = 1;
@@ -51,7 +54,7 @@ void getPressureReading() {
 	int old_pressure; // pressures are raw readings ("counts") from HSC sensor
 	int new_pressure;
 
-	pressure_sensor.start();
+	digitalWrite(READINGLED, HIGH);
 	pressure_sensor.update();
 	new_pressure = pressure_sensor.pressure_Raw();
 
@@ -60,7 +63,6 @@ void getPressureReading() {
 		highpressure = (new_pressure > HIGH_CUTOUT);
 		if (highpressure) {
 			charging = 0;
-			Serial.println("HIGH PRESSURE!");
 			digitalWrite(WARNLED, HIGH);
 			break;
 			}
@@ -80,6 +82,7 @@ void getPressureReading() {
 		}
 	pressure_sensor.stop();
 	printReading();
+	digitalWrite(READINGLED, LOW);
 	}
 
 void int0_isr() {
@@ -93,17 +96,11 @@ void setup() {
 	Serial.begin(115200);
 	pressure_sensor.setMinRaw(1638);
 	pressure_sensor.setMaxRaw(14746);
-	pressure_sensor.setMinPressure(0.0);
-	pressure_sensor.setMaxPressure(351.5); // cm H20, instead of PSI
 	pressure_sensor.setTemperatureCompensated(1);
-	Serial.print("Initialising pressure sensor: ");
-	Serial.println(pressure_sensor.start());
-	Serial.print("Maximum pressure is ");
-	Serial.println(pressure_sensor.maxPressure());
-	Serial.println("UTC, pressure (cmH20), temperature (C)");
-	pressure_sensor.start();
+	Serial.println("Initialising pressure sensor.");
+	print_datestamp();
+	Serial.println();
 	pressure_sensor.update();
-	pressure_sensor.stop();
 	attachInterrupt(0, int0_isr, LOW);
 	rtc.writeAlarm(2, alarmModePerMinute, time_buf);
 	rtc.setSQIMode(sqiModeAlarm2);

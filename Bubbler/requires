@@ -1,3 +1,5 @@
 #include <DSRTC.h>
 #include <SPI.h>
 #include <Wire.h>
+#include <SSC.h>
+#include <HSCDANN005PGSA5.h>
