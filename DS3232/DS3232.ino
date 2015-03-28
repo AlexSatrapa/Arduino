@@ -50,27 +50,24 @@ SparkFun DeadOn -> Arduino Uno
     CLK         -> D13
     MISO        -> D12
     MOSI        -> D11
-    SS          -> D10
+    SS          -> D8
 */
 
-#include <SPI.h>
-#include <Wire.h>
 #include <avr/pgmspace.h>
 #include <string.h>
-#include <DS3232.h>
+//#include <DS3232.h>
 #include <DS3234.h>
+#include <Time.h>
 #include "pins.h"
 
-DS3232 RTCA = DS3232();
-DS3234 RTCB = DS3234(DS3234_SS_PIN);
+DS3234 RTC = DS3234(CLOCK_SS_PIN);
 
 char buffer[64];
 size_t buflen;
 bool led_on = false;
 alarmMode_t alarmMode = alarmModeUnknown;
 dsrtc_calendar_t alarmSetting;
-volatile bool ds3232_alarmed = false;
-volatile bool ds3234_alarmed = false;
+volatile bool alarm_triggered = false;
 
 const char *days[] = {
     "Sun, ", "Mon, ", "Tue, ", "Wed, ", "Thu, ", "Fri, ", "Sat, "
@@ -116,8 +113,7 @@ inline void print_binary(uint8_t value)
 
 void cmdHelp(const char *);
 void cmdRegisters(const char *);
-void ds3232Alarm();
-void ds3234Alarm();
+void rtcAlarm();
 void showTrigger();
 void printDec2(int value);
 void printTime(dsrtc_calendar_t tm);
@@ -127,64 +123,43 @@ bool matchString(const char *name, const char *str, int len);
 
 void setup() {
     Serial.begin(115200);
-    SPI.begin();
-    Wire.begin();
 
-    // We're actually setting the time here
     alarmSetting.Year = 15; // type only supports 255, RTC only supports 0-99
     alarmSetting.Month = 3;
     alarmSetting.Wday = 1;
-    alarmSetting.Day = 8;
+    alarmSetting.Day = 7;
     alarmSetting.Hour = 21;
     alarmSetting.Minute = 43;
     alarmSetting.Second = 57;
 
-    RTCA.write(alarmSetting);
-    RTCB.write(alarmSetting);
-
-    // Now set some alarms
-    alarmSetting.Minute = 44;
-    alarmSetting.Second = 13;
-
-    RTCA.set33kHzOutput(false);
-    RTCA.setSQIMode(sqiModeNone);
-    RTCA.writeAlarm(1, alarmModeSecondsMatch, alarmSetting);
+    RTC.set33kHzOutput(false);
+    RTC.setSQIMode(sqiModeNone);
+    RTC.writeAlarm(1, alarmModeSecondsMatch, alarmSetting);
     alarmSetting.Second = 15;
-    RTCA.writeAlarm(2, alarmModePerMinute, alarmSetting);
-    attachInterrupt(1, ds3232Alarm, FALLING);
-    RTCA.setSQIMode(sqiModeAlarmBoth);
-    RTCA.setOscillatorStopFlag(false);
-
-    RTCB.set33kHzOutput(false);
-    RTCB.setSQIMode(sqiModeNone);
-    alarmSetting.Second = 17;
-    RTCB.writeAlarm(1, alarmModeMinutesMatch, alarmSetting);
-    alarmSetting.Second = 19;
-    RTCB.writeAlarm(2, alarmModeHoursMatch, alarmSetting);
-    attachInterrupt(0, ds3234Alarm, FALLING);
-    RTCB.setSQIMode(sqiModeAlarmBoth);
-    RTCB.setOscillatorStopFlag(false);
+    RTC.writeAlarm(2, alarmModePerMinute, alarmSetting);
+    attachInterrupt(0, rtcAlarm, FALLING);
+    RTC.clearAlarmFlag(3);
+    RTC.setSQIMode(sqiModeAlarmBoth);
+    RTC.setOscillatorStopFlag(false);
 
     Serial.println("ALARM CLOCKS ARE GO!");
 
-    RTCA.setTCXORate( tempScanRate256sec );
-    RTCB.setTCXORate( tempScanRate512sec );
+    RTC.setTCXORate( tempScanRate256sec );
     cmdRegisters(NULL);
 
-    RTCA.setTCXORate( tempScanRate64sec );
-    RTCB.setTCXORate( tempScanRate64sec );
+    RTC.setTCXORate( tempScanRate64sec );
     cmdRegisters(NULL);
 
-    RTCA.readAlarm(1, alarmMode, alarmSetting);
+    RTC.readAlarm(1, alarmMode, alarmSetting);
     if (
         alarmMode == alarmModeSecondsMatch and
-        alarmSetting.Second == 13
+        alarmSetting.Second == 57
         ) {
         Serial.println("Alarm 1 reads correctly");
     } else {
         Serial.println("Alarm 1 reads incorrectly");
     }
-    RTCA.readAlarm(2, alarmMode, alarmSetting);
+    RTC.readAlarm(2, alarmMode, alarmSetting);
     if (
         alarmMode == alarmModePerMinute and
         alarmSetting.Second == 0
@@ -194,36 +169,13 @@ void setup() {
         Serial.println("Alarm 2 reads incorrectly");
     }
 
-    RTCB.readAlarm(1, alarmMode, alarmSetting);
-    if (
-        alarmMode == alarmModeMinutesMatch and
-        alarmSetting.Second == 17 and
-        alarmSetting.Minute == 44
-        ) {
-        Serial.println("Alarm 1 reads correctly");
-    } else {
-        Serial.println("Alarm 1 reads incorrectly");
-    }
-    RTCB.readAlarm(2, alarmMode, alarmSetting);
-    if (
-        alarmMode == alarmModeHoursMatch and
-        alarmSetting.Second == 0 and
-        alarmSetting.Minute == 44 and
-        alarmSetting.Hour == 21
-        ) {
-        Serial.println("Alarm 2 reads correctly");
-    } else {
-        Serial.println("Alarm 2 reads incorrectly");
-    }   
-
     buflen = 0;
     cmdHelp(0);
-    RTCA.clearAlarmFlag(3);
-    RTCB.clearAlarmFlag(3);
+    RTC.clearAlarmFlag(3);
 }
 
 void loop() {
-    if (ds3232_alarmed or ds3234_alarmed) showTrigger();
+    if (alarm_triggered) showTrigger();
 
     if (Serial.available()) {
         // Process serial input for commands from the host.
@@ -249,47 +201,28 @@ void loop() {
     }
 }
 
-void ds3232Alarm()  // Triggered when DS3232 alarm is fired
+void rtcAlarm()  // Triggered when alarm pin is brought low by RTC
 {
-    ds3232_alarmed = true;
-}
-
-void ds3234Alarm() // Triggered when DS3234 alarm is fired
-{
-    ds3234_alarmed = true;
+    alarm_triggered = true;
 }
 
 void showTrigger()
 {
     dsrtc_calendar_t tm;
 
-    if(ds3232_alarmed) {
-        RTCA.read(tm);
-        if (RTCA.isAlarmFlag(1)) {
+    if(alarm_triggered) {
+        RTC.read(tm);
+        if (RTC.isAlarmFlag(1)) {
             printTime(tm);
-            Serial.println(": DS3232 alarm 1 triggered");
-            RTCA.clearAlarmFlag(1);
+            Serial.println(": Alarm 1 triggered");
+            RTC.clearAlarmFlag(1);
         }
-        if (RTCA.isAlarmFlag(2)) {
+        if (RTC.isAlarmFlag(2)) {
             printTime(tm);
-            Serial.println(": DS3232 alarm 2 triggered");
-            RTCA.clearAlarmFlag(2);
+            Serial.println(": Alarm 2 triggered");
+            RTC.clearAlarmFlag(2);
         }
-        ds3232_alarmed = false;
-    }
-    if(ds3234_alarmed) {
-        RTCB.read(tm);
-        if(RTCB.isAlarmFlag(1)) {
-            printTime(tm);
-            Serial.println(": DS3234 alarm 1 triggered");
-            RTCB.clearAlarmFlag(1);
-        }
-        if(RTCB.isAlarmFlag(2)) {
-            printTime(tm);
-            Serial.println(": DS3234 alarm 2 triggered");
-            RTCB.clearAlarmFlag(2);
-        }
-        ds3234_alarmed = false;
+        alarm_triggered = false;
     }
 }
 
@@ -355,18 +288,12 @@ void cmdTime(const char *args)
             Serial.println("Invalid time format; use HH:MM:SS");
             return;
         }
-        RTCA.writeTime(tm);
-        RTCB.writeTime(tm);
+        RTC.writeTime(tm);
         Serial.print("Time has been set to: ");
     }
 
     // Read the current time.
-    RTCA.read(tm);
-    printTime(tm);
-    Serial.println();
-
-    // Read the current time.
-    RTCB.read(tm);
+    RTC.read(tm);
     printTime(tm);
     Serial.println();
 }
@@ -374,11 +301,18 @@ void cmdTime(const char *args)
 // "DATE" command.
 void cmdDate(const char *args)
 {
-    dsrtc_calendar_t tm;
+    dsrtc_calendar_t rtcDate;
+    tmElements_t tm, tm2; // Using Time.h to calculate day of week
 
     if (*args != '\0') {
         // Set the current date.
         unsigned long value = 0;
+        tm.Hour = 0;
+        tm.Minute = 0;
+        tm.Second = 0;
+        rtcDate.Second = tm.Second;
+        rtcDate.Minute = tm.Minute;
+        rtcDate.Hour = tm.Hour;
         while (*args >= '0' && *args <= '9')
             value = value * 10 + (*args++ - '0');
         if (value < 20000000 || value >= 22000000) {
@@ -387,60 +321,50 @@ void cmdDate(const char *args)
         }
         tm.Day = (byte)(value % 100);
         tm.Month = (byte)((value / 100) % 100);
-        tm.Year = (unsigned int)(value / 10000) - 1970;
+        int year = (value / 10000);
+        tm.Year = (byte)((year) - 1970) % 100;
+        rtcDate.Day = tm.Day;
+        rtcDate.Month = tm.Month;
+        rtcDate.Year = year % 100;
         if (tm.Month < 1 || tm.Month > 12) {
             Serial.println("Month must be between 1 and 12");
             return;
         }
-        uint8_t len = monthLength(&tm);
+        byte len = monthLength(&rtcDate);
         if (tm.Day < 1 || tm.Day > len) {
             Serial.print("Day must be between 1 and ");
             Serial.println(len, DEC);
             return;
         }
-        tm.Hour = 0;
-        tm.Minute = 0;
-        tm.Second = 0;
-        tm.Wday = 0; // Ask Time library to calculate day of week.
-        RTCA.writeDate(tm);
-        RTCB.writeDate(tm);
+        // Set week day
+        tm.Year = tm.Year - 1970; // Time.h uses Unix epoch
+        breakTime(makeTime(tm), tm2);
+        tm.Wday = tm2.Wday;
+        rtcDate.Wday = tm.Wday;
+        RTC.writeDate(rtcDate);
         Serial.print("Date has been set to: ");
     } /* */
 
     // Read the current date.
-    RTCA.read(tm);
-    if (tm.Wday > 0) Serial.print(days[tm.Wday - 1]);
-    Serial.print(tm.Day, DEC);
-    Serial.print(months[tm.Month - 1]);
-    Serial.println(tm.Year + 1970, DEC);  // NB! Remember tmYearToCalendar()
-
-    RTCB.read(tm);
-    if (tm.Wday > 0) Serial.print(days[tm.Wday - 1]);
-    Serial.print(tm.Day, DEC);
-    Serial.print(months[tm.Month - 1]);
-    Serial.println(tm.Year + 1970, DEC);  // NB! Remember tmYearToCalendar() */
+    RTC.read(rtcDate);
+    if (rtcDate.Wday > 0 and rtcDate.Wday < 8) Serial.print(days[rtcDate.Wday - 1]);
+    Serial.print(rtcDate.Day, DEC);
+    Serial.print(months[rtcDate.Month - 1]);
+    Serial.println(rtcDate.Year, DEC);
 }
 
 // "TEMP" command.
 void cmdTemp(const char *args)
 {
     tpElements_t tp;
-    RTCA.readTemperature(tp);
+    RTC.readTemperature(tp);
     if (tp.Temp != NO_TEMPERATURE) {
         float temp = tp.Temp + (tp.Decimal / 100);
         Serial.print(temp);
-        Serial.print("'C (");
-        Serial.print(temperatureCToF(temp));
-        Serial.println("'F)");
+        Serial.println("'C");
     } else {
         Serial.println("Temperature is not available");
     }
-    RTCB.readTemperature(tp);
-    float temp = tp.Temp + (tp.Decimal / 100);
-    Serial.print(temp);
-    Serial.print("'C (");
-    Serial.print(temperatureCToF(temp));
-    Serial.println("'F)");
 }
 
 void printAlarm(byte alarmNum, const alarmMode_t mode, const dsrtc_calendar_t time, bool ison)
@@ -508,16 +432,9 @@ void cmdAlarms(const char *args)
     dsrtc_calendar_t time;
     alarmMode_t mode;
     bool ison;
-    Serial.println("DS3232:");
     for (byte alarmNum = 1; alarmNum <= 2; ++alarmNum) {
-        RTCA.readAlarm(alarmNum, mode, time);
-        ison = RTCA.isAlarmInterrupt(alarmNum);
-        printAlarm(alarmNum, mode, time, ison);
-    }
-    Serial.println("DS3234:");
-    for (byte alarmNum = 1; alarmNum <= 2; ++alarmNum) {
-        RTCB.readAlarm(alarmNum, mode, time);
-        ison = RTCB.isAlarmInterrupt(alarmNum);
+        RTC.readAlarm(alarmNum, mode, time);
+        ison = RTC.isAlarmInterrupt(alarmNum);
         printAlarm(alarmNum, mode, time, ison);
     }
     showTrigger();
@@ -525,10 +442,8 @@ void cmdAlarms(const char *args)
     if (*args != '\0')
     {
         Serial.println("Clearing alarm flags");
-        RTCA.clearAlarmFlag(1);
-        RTCA.clearAlarmFlag(2);
-        RTCB.clearAlarmFlag(1);
-        RTCB.clearAlarmFlag(2);
+        RTC.clearAlarmFlag(1);
+        RTC.clearAlarmFlag(2);
     }
 }
 
@@ -563,135 +478,40 @@ void cmdAlarm(const char *args)
                 return;
             }
             mode = alarmModeHoursMatch;
-            bool a1 = RTCA.isAlarmInterrupt(1);
-            bool a2 = RTCA.isAlarmInterrupt(2);
+            bool a1 = RTC.isAlarmInterrupt(1);
+            bool a2 = RTC.isAlarmInterrupt(2);
             if (alarmNum == 1) {
               a1 = true;
             } else {
               a2 = true;
             }
             if (a1 && a2) {
-              RTCA.setSQIMode(sqiModeAlarmBoth);
+              RTC.setSQIMode(sqiModeAlarmBoth);
             } else if (a1) {
-              RTCA.setSQIMode(sqiModeAlarm1);
+              RTC.setSQIMode(sqiModeAlarm1);
             } else if (a2) {
-              RTCA.setSQIMode(sqiModeAlarm2);
+              RTC.setSQIMode(sqiModeAlarm2);
             }
         }
-        RTCA.writeAlarm(alarmNum, mode, time);
+        RTC.writeAlarm(alarmNum, mode, time);
     }
 
     // Print the current state of the alarm.
-    Serial.println("DS3232:");
-    RTCA.readAlarm(alarmNum, mode, time);
-    ison = RTCA.isAlarmInterrupt(alarmNum);
+    RTC.readAlarm(alarmNum, mode, time);
+    ison = RTC.isAlarmInterrupt(alarmNum);
     printAlarm(alarmNum, mode, time, ison);
-    Serial.println("DS3234:");
-    RTCB.readAlarm(alarmNum, mode, time);
-    ison = RTCB.isAlarmInterrupt(alarmNum);
-    printAlarm(alarmNum, mode, time, ison);
-}
-
-// "SRAM" command.
-void cmdSram(const char *args)
-{
-    static const char hexchars[] = "0123456789ABCDEF";
-    SRAM.flush();  // reset cursor
-    int count = SRAM.available();
-    for (int offset = 0; offset < count; ++offset) {
-        if ((offset % 16) == 0) {
-            if (offset)
-                Serial.println();
-            Serial.print(hexchars[(offset >> 12) & 0x0F]);
-            Serial.print(hexchars[(offset >> 8) & 0x0F]);
-            Serial.print(hexchars[(offset >> 4) & 0x0F]);
-            Serial.print(hexchars[offset & 0x0F]);
-            Serial.print(':');
-            Serial.print(' ');
-        }
-        byte value = SRAM.read();
-        Serial.print(hexchars[(value >> 4) & 0x0F]);
-        Serial.print(hexchars[value & 0x0F]);
-        Serial.print(' ');
-    }
-    Serial.println();
-}
-
-// "DUMP" command
-void cmdDump(const char *args)
-{
-  int value = -1;
-
-  if (*args != '\0') {
-    while (*args >= '0' && *args <= '9') {
-      if (value == -1) value = 0;
-      value = value * 10 + (*args++ - '0');
-    }
-  }
-  if (value < 0 || value > 1) {
-    Serial.println("Number must be 0 or 1");
-      return;
-  }
-
-  SRAM.flush();  // reset cursor
-  if (value == 0) {
-    // Correct way is to write until available() == 0
-    uint8_t i = 0;
-    while (SRAM.available()) SRAM.write( i );
-  } else {
-    // SRAM is from register 14h (20) to FFh (255)
-    for (int i = 20; i < 256; i++) SRAM.write( (uint8_t)i );
-  }
-  Serial.println("OK");
 }
 
 // "REGS" command
 void cmdRegisters(const char *)
 {
     byte value;
-    Serial.println("DS3232:");
-    value = RTCA.readControlRegister();
+    value = RTC.readControlRegister();
     Serial.write("Ctrl: ");
     print_binary( value );
-    value = RTCA.readStatusRegister();
+    value = RTC.readStatusRegister();
     Serial.write("Stat: ");
     print_binary( value );
-    Serial.println("DS3234:");
-    value = RTCB.readControlRegister();
-    Serial.write("Ctrl: ");
-    print_binary( value );
-    value = RTCB.readStatusRegister();
-    Serial.write("Stat: ");
-    print_binary( value );
-}
-
-void cmdMap(const char *)
-{
-    static const char hexchars[] = "0123456789ABCDEF";
-    uint8_t value;
-
-    Wire.beginTransmission(DS3232_I2C_ADDRESS);
-    Wire.write(0x00);  // sends 00h - Seconds register
-    Wire.endTransmission();
-
-    Wire.requestFrom(DS3232_I2C_ADDRESS, 0x14);
-
-    for (int offset = 0; offset < 0x14; offset++) {
-        value = Wire.read();
-
-        if (offset % 7 == 0) {
-            if (offset != 0) Serial.println();
-            Serial.print(hexchars[(offset >> 4) & 0x0F]);
-            Serial.print(hexchars[offset & 0x0F]);
-            Serial.print(':');
-            Serial.print(' ');
-        }
-
-        Serial.print(hexchars[(value >> 4) & 0x0F]);
-        Serial.print(hexchars[value & 0x0F]);
-        Serial.print(' ');
-    }
-    Serial.println();
 }
 
 // List of all commands that are understood by the sketch.
@@ -721,19 +541,9 @@ const char s_cmdAlarm[] PROGMEM = "ALARM";
 const char s_cmdAlarmDesc[] PROGMEM =
     "Read or write a specific alarm";
 const char s_cmdAlarmArgs[] PROGMEM = "NUM [HH:MM|OFF]";
-const char s_cmdSram[] PROGMEM = "SRAM";
-const char s_cmdSramDesc[] PROGMEM =
-    "Print the contents of SRAM";
-const char s_cmdDump[] PROGMEM = "DUMP";
-const char s_cmdDumpDesc[] PROGMEM =
-    "Write contents into SRAM; 0=Zeros, 1=Counter";
-const char s_cmdDumpArgs[] PROGMEM = "(0|1)";
 const char s_cmdRegisters[] PROGMEM = "REGS";
 const char s_cmdRegistersDesc[] PROGMEM =
     "Show the Control and Status registers";
-const char s_cmdMap[] PROGMEM = "MAP";
-const char s_cmdMapDesc[] PROGMEM =
-    "Print the content of Address Map";
 const char s_cmdHelp[] PROGMEM = "HELP";
 const char s_cmdHelpDesc[] PROGMEM =
     "Prints this help message";
@@ -743,10 +553,7 @@ const command_t commands[] PROGMEM = {
     {s_cmdTemp, cmdTemp, s_cmdTempDesc, 0},
     {s_cmdAlarms, cmdAlarms, s_cmdAlarmsDesc, 0},
     {s_cmdAlarm, cmdAlarm, s_cmdAlarmDesc, s_cmdAlarmArgs},
-    {s_cmdSram, cmdSram, s_cmdSramDesc, 0},
-    {s_cmdDump, cmdDump, s_cmdDumpDesc, s_cmdDumpArgs},
     {s_cmdRegisters, cmdRegisters, s_cmdRegistersDesc, 0},
-    {s_cmdMap, cmdMap, s_cmdMapDesc, 0},
     {s_cmdHelp, cmdHelp, s_cmdHelpDesc, 0},
     {0, 0}
 };
