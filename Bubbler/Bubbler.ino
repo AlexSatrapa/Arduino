@@ -41,8 +41,8 @@ inline void printDatestamp() {
 
 inline void printValues() {
 	char buff[BUFF_MAX];
-	int raw_press = pressure_sensor.pressure_Raw();
-	int raw_temp = pressure_sensor.temperature_Raw();
+	int raw_press = pressure_sensor.rawPressure();
+	int raw_temp = pressure_sensor.rawTemperature();
 	snprintf(buff, BUFF_MAX, ", %d, %d", raw_press, raw_temp);
 	Serial.println(buff);
 	}
@@ -60,7 +60,7 @@ inline void getPressureReading() {
 
 	digitalWrite(READINGLED, HIGH);
 	pressure_sensor.update();
-	new_pressure = pressure_sensor.pressure_Raw();
+	new_pressure = pressure_sensor.rawPressure();
 
 	while (charging) {
 		old_pressure = new_pressure;
@@ -81,7 +81,7 @@ inline void getPressureReading() {
 			delay(500); // allow for pump motor inertia, and escape of some bubbles
 			}
 		pressure_sensor.update();
-		new_pressure = pressure_sensor.pressure_Raw();
+		new_pressure = pressure_sensor.rawPressure();
 		charging = (abs(new_pressure - old_pressure) > MARGIN);
 		}
 	pressure_sensor.stop();
@@ -109,7 +109,7 @@ void setup() {
 	setupPins();
 	setupRTC();
 	pressure_sensor.update();
-	print_datestamp();
+	printDatestamp();
 	Serial.println();
 }
 
