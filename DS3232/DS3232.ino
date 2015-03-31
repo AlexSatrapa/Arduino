@@ -55,7 +55,7 @@ SparkFun DeadOn -> Arduino Uno
 
 #include <avr/pgmspace.h>
 #include <string.h>
-//#include <DS3232.h>
+#include <DS3232.h>
 #include <DS3234.h>
 #include <Time.h>
 #include "pins.h"
