@@ -13,7 +13,7 @@
 // Pin 4 PCINT20/XCK/T0
 #define WARNLED 4
 // Pin 5 PCINT21/OC0B/T1, PWM
-#define MOTORLED 5
+#define XBEE_ENABLE 5
 // Pin 6 PCINT22/OC0A/AIN0, PWM
 #define READINGLED 6
 // Pin 7 PCINT23/AIN1
@@ -40,7 +40,8 @@ inline void setupPins() {
 	disablePin( 1 );
 	disablePin( 2 );
 	pinMode(MOTOR, OUTPUT);
-	pinMode(MOTORLED, OUTPUT);
+	pinMode(XBEE_ENABLE, OUTPUT);
+	digitalWrite(XBEE_ENABLE, LOW);
 	pinMode(READINGLED, OUTPUT);
 	pinMode(WARNLED, OUTPUT);
 	digitalWrite(PRESSURE, HIGH);

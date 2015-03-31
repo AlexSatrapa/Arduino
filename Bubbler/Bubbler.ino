@@ -42,6 +42,16 @@ volatile bool ALARM = false;
 HSCDANN005PGSA5 pressure_sensor(PRESSURE);
 DS3234 rtc(RTC_SS_PIN, DS323X_INTCN || DS323X_EOSC);
 
+void wakeXBee() {
+	digitalWrite(XBEE_ENABLE, HIGH);
+	delay(9000);
+	}
+
+void sleepXBee() {
+	delay(1000);
+	digitalWrite(XBEE_ENABLE, LOW);
+	}
+
 inline void printDatestamp() {
 	char buff[BUFF_MAX];
 	dsrtc_calendar_t t;
@@ -70,6 +80,7 @@ inline void getPressureReading() {
 	boolean highpressure = 0;
 	int old_pressure; // pressures are raw readings ("counts") from HSC sensor
 	int new_pressure;
+	const int pump_duration = 100;
 
 	digitalWrite(READINGLED, HIGH);
 	pressure_sensor.update();
@@ -88,7 +99,6 @@ inline void getPressureReading() {
 			}
 		if (charging) {
 			digitalWrite(MOTOR, HIGH);
-			int pump_duration = 50;
 			delay(pump_duration);
 			digitalWrite(MOTOR, LOW);
 			delay(500); // allow for pump motor inertia, and escape of some bubbles
@@ -98,7 +108,9 @@ inline void getPressureReading() {
 		charging = (abs(new_pressure - old_pressure) > MARGIN);
 		}
 	pressure_sensor.stop();
+	wakeXBee();
 	printReading();
+	sleepXBee();
 	digitalWrite(READINGLED, LOW);
 	}
 
@@ -124,6 +136,7 @@ void setup() {
 	pressure_sensor.update();
 	printDatestamp();
 	Serial.println();
+	getPressureReading();
 }
 
 void loop() {
