@@ -25,3 +25,6 @@
 [submodule "libraries/RTC"]
 	path = libraries/DSRTC
 	url = git@github.com:AlexSatrapa/DSRTC.git
+[submodule "Bubbler"]
+	path = Bubbler
+	url = git@github.com:AlexSatrapa/Bubbler.git
