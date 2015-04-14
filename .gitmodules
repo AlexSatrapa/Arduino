@@ -28,3 +28,6 @@
 [submodule "Bubbler"]
 	path = Bubbler
 	url = git@github.com:AlexSatrapa/Bubbler.git
+[submodule "libraries/xbee-arduino"]
+	path = libraries/xbee-arduino
+	url = git@github.com:AlexSatrapa/xbee-arduino.git
