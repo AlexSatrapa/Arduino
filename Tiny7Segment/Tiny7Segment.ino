@@ -1,14 +1,9 @@
 #include "pins.h"
 #include <SPI.h>
-#include <ChaseLEDs.h>
 
 SPISettings spi_settings;
 
-// Chaser LEDs just to show that the Tiny is alive.
-byte pins[] = {2, 7, 8, 9, 10, 9, 8, 7};
-ChaseLEDs chaser(pins, sizeof(pins), 500);
-
-const unsigned long advanceTime = 500;
+const unsigned long advanceTime = 1000;
 unsigned long lastChange;
 unsigned count;
 
@@ -45,7 +40,6 @@ void setup() {
 void loop() {
 	// put your main code here, to run repeatedly:
 	unsigned millibuf = millis();
-	chaser.loop();
 	if (millibuf - lastChange > advanceTime) {
 		sendCount();
 		if(count++ > 9999) count = 0;
