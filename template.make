@@ -1,6 +1,6 @@
 PORT_SPEED=57600
 BOARD=leonardo
-LIBRARYPATH=../libraries /Applications/Arduino.app/Contents/Resources/Java/libraries
+LIBRARYPATH=../libraries /Applications/Arduino.app/Contents/Java/libraries
 include ../Arduino.mk
 
 # Note:

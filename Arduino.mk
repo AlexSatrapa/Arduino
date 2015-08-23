@@ -162,8 +162,8 @@
 # default arduino software directory, check software exists
 ifndef ARDUINODIR
 ARDUINODIR := $(firstword $(wildcard ~/opt/arduino /usr/share/arduino \
-	/Applications/Arduino.app/Contents/Resources/Java \
-	$(HOME)/Applications/Arduino.app/Contents/Resources/Java))
+	/Applications/Arduino.app/Contents/Java \
+	$(HOME)/Applications/Arduino.app/Contents/Java))
 endif
 SKETCHBOOKDIR=~arduino
 # obtain board parameters from the arduino boards.txt file
@@ -296,6 +296,7 @@ CPPFLAGS += -DUSB_VID=$(BOARD_USB_VID) -DUSB_PID=$(BOARD_USB_PID)
 CPPFLAGS += -I. -Iutil -Iutility -I $(ARDUINOCOREDIR)
 CPPFLAGS += -I $(ARDUINODIR)/hardware/arduino/avr/variants/$(BOARD_BUILD_VARIANT)/
 CPPFLAGS += $(addprefix -I , $(LIBRARYDIRS))
+CPPFLAGS += -fmerge-constants
 CPPDEPFLAGS = -MMD -MP -MF .dep/$<.dep
 CPPINOFLAGS := -x c++ -include $(ARDUINOCOREDIR)/Arduino.h
 AVRDUDEFLAGS += $(addprefix -C , $(AVRDUDECONF)) -DV
