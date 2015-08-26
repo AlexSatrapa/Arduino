@@ -1,8 +1,7 @@
 #include "pins.h"
-#include <ChaseLEDs.h>
+#include <BlinkLED.h>
 
-byte pins[] = {2, 3, 4, 5, 6, 7, 8, 9};
-ChaseLEDs chaser(pins, sizeof(pins), 500);
+BlinkLED blinker(10, 250, 500);
 
 void setup() {
 	// put your setup code here, to run once:
@@ -10,5 +9,5 @@ void setup() {
 
 void loop() {
 	// put your main code here, to run repeatedly:
-	chaser.loop();
+	blinker.loop();
 }
