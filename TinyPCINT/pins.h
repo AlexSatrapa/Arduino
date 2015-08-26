@@ -3,6 +3,7 @@
 
 #define LED 10
 #define BUTTON 9
+#define FOLLOWER 8
 
 #endif
 
