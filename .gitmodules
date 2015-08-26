@@ -31,3 +31,6 @@
 [submodule "libraries/xbee-arduino"]
 	path = libraries/xbee-arduino
 	url = git@github.com:AlexSatrapa/xbee-arduino.git
+[submodule "hardware/arduino-tiny-841"]
+	path = hardware/arduino-tiny-841
+	url = git@github.com:AlexSatrapa/arduino-tiny-841.git
