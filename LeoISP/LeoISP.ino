@@ -7,7 +7,7 @@
 // using the following arduino pins:
 //
 // pin name:    leostick:
-// slave reset: 12
+// slave reset: 4
 // MOSI:        ICSP  
 // MISO:        ICSP
 // SCK:         ICSP
@@ -44,7 +44,7 @@
 // - More information at http://code.google.com/p/mega-isp
 
 #include "pins_arduino.h"
-#define RESET     12 // connect this pin of the Leo to the reset of the target
+#define RESET     4 // connect this pin of the Leo to the reset of the target
 
 // Green, Red, Blue LEDs on LeoStick
 #define LED_HB    9
