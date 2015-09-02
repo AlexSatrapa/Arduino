@@ -9,6 +9,7 @@
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
+#include "localsecrets.h"
 
 ESP8266WiFiMulti wifiMulti;
 
@@ -27,9 +28,7 @@ void setup() {
 
 	// Connect to WiFi network
 	Serial.println("Connecting Wifi...");
-	wifiMulti.addAP("Shandor's Folly", "camelot is a silly place");
-	wifiMulti.addAP("MHV", "solderingiron43");
-	wifiMulti.addAP("MHV1", "solderingiron43");
+	wifiMulti.addAP(name, password);
 	while(WiFi.status() != WL_CONNECTED) {
 		if(wifiMulti.run() == WL_CONNECTED) {
 			Serial.println("");
