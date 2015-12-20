@@ -123,6 +123,8 @@ bool matchString(const char *name, const char *str, int len);
 
 void setup() {
     Serial.begin(115200);
+    pinMode(PRESSURE_SS_PIN, OUTPUT);
+    digitalWrite(PRESSURE_SS_PIN, 1);
 
     alarmSetting.Year = 15; // type only supports 255, RTC only supports 0-99
     alarmSetting.Month = 3;
