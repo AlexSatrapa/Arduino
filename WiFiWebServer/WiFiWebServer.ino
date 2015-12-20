@@ -3,19 +3,44 @@
  *	The server will set a GPIO pin depending on the request
  *		http://server_ip/gpio/0 will set the GPIO2 low,
  *		http://server_ip/gpio/1 will set the GPIO2 high
- *	server_ip is the IP address of the ESP8266 module, will be
- *	printed to Serial when the module is connected.
+ *	server_ip is the IP address of the ESP8266 module, which will be
+ *	printed to Serial when the module is configured.
  */
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
-#include "localsecrets.h"
+
+const byte MAXBUF = 64;
+struct wifi_config_t {
+	char ssid[MAXBUF]; // SSID max length is 32 octets
+	char password[MAXBUF]; // passphrase max length is 63 octets or 64 Hex characters
+	bool configured;
+} wifi_config;
 
 ESP8266WiFiMulti wifiMulti;
 
 // Create an instance of the server
 // specify the port to listen on as an argument
 WiFiServer server(80);
+
+void collectCredentials() {
+	byte ssid_char_count, password_char_count;
+	wifi_config.configured = false;
+	while (!wifi_config.configured) {
+		Serial.println("Configuring WiFi. Please enter these credentials:");
+		Serial.setTimeout(10000);
+		Serial.print("SSID: ");
+		ssid_char_count = Serial.readBytesUntil(13, wifi_config.ssid, MAXBUF-1);
+		wifi_config.ssid[ssid_char_count-1] = 0; // Delete the line feed.
+		Serial.println("");
+		Serial.print("Password: ");
+		password_char_count = Serial.readBytesUntil(13, wifi_config.password, MAXBUF-1);
+		wifi_config.password[password_char_count-1] = 0; // Delete the line feed.
+		Serial.println("");
+		wifi_config.configured = (ssid_char_count > 0) && (password_char_count > 0);
+		wifiMulti.addAP(wifi_config.ssid, wifi_config.password);
+	}
+}
 
 void setup() {
 	Serial.begin(115200);
@@ -27,18 +52,20 @@ void setup() {
 	pinMode(4, OUTPUT);
 
 	// Connect to WiFi network
-	Serial.println("Connecting Wifi...");
-	wifiMulti.addAP(name, password);
+	WiFi.mode(WIFI_STA);
+	collectCredentials();
+	Serial.print("Connecting Wifi: ");
+	Serial.print(wifi_config.ssid);
+	Serial.println(".");
 	while(WiFi.status() != WL_CONNECTED) {
 		if(wifiMulti.run() == WL_CONNECTED) {
-			Serial.println("");
 			Serial.println("WiFi connected");
 			Serial.println("IP address: ");
 			Serial.println(WiFi.localIP());
 			digitalWrite(4, HIGH);
 		}
-		delay(500);
-		Serial.print(".");
+		delay(1000);
+		Serial.println(WiFi.status());
 	}
 
 
